@@ -39,4 +39,10 @@ For each model and OS separately:
 
 Public registry notification mechanisms: [IOKit](https://developer.apple.com/documentation/iokit), [Apple notification source](https://github.com/apple-oss-distributions/IOKitUser/blob/main/ionotifyCB.c). Accessory-specific IOPowerSources functions in [IOPowerSourcesPrivate.h](https://github.com/apple-oss-distributions/IOKitUser/blob/main/ps.subproj/IOPowerSourcesPrivate.h) are private and are not used. UI uses [NSStatusBar](https://developer.apple.com/documentation/appkit/nsstatusbar) and [LSUIElement](https://developer.apple.com/documentation/bundleresources/information-property-list/lsuielement). Use an installed compatible [Swift toolchain](https://www.swift.org/install/macos/).
 
-No third-party implementation was copied. An open-source license must be selected before public distribution.
+No third-party implementation was copied.
+
+## License
+
+Magic Charger is licensed under the [MIT License](LICENSE).
+
+Copyright (c) 2026 Arshia Ghaf.
