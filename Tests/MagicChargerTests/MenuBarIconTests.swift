@@ -12,7 +12,7 @@ final class MenuBarIconTests: XCTestCase {
         }
     }
     func testFillIncreasesWithActualPercentageAndUnknownIsDistinct() throws {
-        for symbol in ["keyboard", "computermouse"] {
+        for symbol in ["keyboard", "magicmouse"] {
             let empty = try alpha(0, symbol: symbol), half = try alpha(50, symbol: symbol), full = try alpha(100, symbol: symbol)
             XCTAssertLessThan(empty, half); XCTAssertLessThan(half, full)
         }

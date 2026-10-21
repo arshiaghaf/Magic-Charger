@@ -11,12 +11,15 @@ final class ControlsWindow: NSWindowController {
     private let barToggle = NSButton(checkboxWithTitle: "Battery bar", target: nil, action: nil)
     private let preferenceHint = NSTextField(wrappingLabelWithString: "Keep at least one item visible.")
     private let onPreferencesChange: (MenuBarPreferences) -> Void
+    private let onAlertsChange: (NotificationPreferences) -> Void
+    private var alertToggles: [AlertKind: NSButton] = [:]
     private var diagnostic = ""
     private var deviceSignature = ""
     private var detailsWindow: NSWindow?
 
-    init(target: AnyObject, enable: Selector, test: Selector, quit: Selector, preferences: MenuBarPreferences, onChange: @escaping (MenuBarPreferences) -> Void) {
+    init(target: AnyObject, enable: Selector, test: Selector, quit: Selector, preferences: MenuBarPreferences, alerts: NotificationPreferences, onChange: @escaping (MenuBarPreferences) -> Void, onAlertsChange: @escaping (NotificationPreferences) -> Void) {
         onPreferencesChange = onChange
+        self.onAlertsChange = onAlertsChange
         enableButton = NSButton(title: "Enable Notifications…", target: target, action: enable)
         testButton = NSButton(title: "Send Test", target: target, action: test)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 430),
@@ -36,10 +39,21 @@ final class ControlsWindow: NSWindowController {
         notificationLabel.font = .systemFont(ofSize: 12); notificationLabel.textColor = .secondaryLabelColor
         let notificationHeading = NSStackView(views: [notificationTitle, notificationLabel]); notificationHeading.orientation = .vertical; notificationHeading.alignment = .leading; notificationHeading.spacing = 4
         let controls = NSStackView(views: [enableButton, testButton]); controls.spacing = 10
-        let reminder = NSTextField(wrappingLabelWithString: "Charging starts, 78%, 80%, and 100%.")
-        reminder.font = .systemFont(ofSize: 11); reminder.textColor = .secondaryLabelColor
+        let alertOptions = NSStackView(); alertOptions.orientation = .vertical; alertOptions.alignment = .leading; alertOptions.spacing = 8
+        for kind in AlertKind.allCases {
+            let toggle = NSButton(checkboxWithTitle: kind.title, target: self, action: #selector(changeAlerts))
+            toggle.state = alerts.allows(kind) ? .on : .off
+            alertToggles[kind] = toggle
+        }
+        let kinds = AlertKind.allCases
+        for offset in stride(from: 0, to: kinds.count, by: 2) {
+            let row = NSStackView(views: [alertToggles[kinds[offset]]!, alertToggles[kinds[offset + 1]]!])
+            row.spacing = 12; row.distribution = .fillEqually
+            alertOptions.addArrangedSubview(row); row.widthAnchor.constraint(equalTo: alertOptions.widthAnchor).isActive = true
+        }
         feedback.font = .systemFont(ofSize: 11); feedback.textColor = .secondaryLabelColor; feedback.isHidden = true
-        let notifications = NSStackView(views: [notificationHeading, controls, reminder, feedback]); notifications.orientation = .vertical; notifications.alignment = .leading; notifications.spacing = 10
+        let notifications = NSStackView(views: [notificationHeading, alertOptions, controls, feedback]); notifications.orientation = .vertical; notifications.alignment = .leading; notifications.spacing = 10
+        alertOptions.widthAnchor.constraint(equalTo: notifications.widthAnchor).isActive = true
         let menuTitle = NSTextField(labelWithString: "Menu Bar"); menuTitle.font = .systemFont(ofSize: 13, weight: .semibold)
         glyphToggle.state = preferences.deviceGlyph ? .on : .off
         percentToggle.state = preferences.percentage ? .on : .off
@@ -75,7 +89,7 @@ final class ControlsWindow: NSWindowController {
                     devices.addArrangedSubview(row); row.widthAnchor.constraint(equalTo: devices.widthAnchor).isActive = true
                 }
             }
-            let height = CGFloat(336 + max(1, sorted.count) * 78)
+            let height = CGFloat(372 + max(1, sorted.count) * 78)
             if let window = window, abs(window.contentLayoutRect.height - height) > 1 {
                 var frame = window.frame
                 let newHeight = window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: 440, height: height)).height
@@ -84,7 +98,7 @@ final class ControlsWindow: NSWindowController {
             }
         }
         let enabled = notificationStatus == "Notifications enabled."
-        notificationLabel.stringValue = enabled ? "On" : (notificationStatus.contains("denied") ? "Off · Enable in System Settings" : "Not enabled")
+        notificationLabel.stringValue = enabled ? "Allowed by macOS" : (notificationStatus.contains("denied") ? "Off · Enable in System Settings" : "Not enabled")
         enableButton.isHidden = enabled
         testButton.isEnabled = enabled
         if message.hasPrefix("Test submitted") { feedback.stringValue = "Test sent to macOS. Check Notification Center if needed."; feedback.isHidden = false }
@@ -112,6 +126,12 @@ final class ControlsWindow: NSWindowController {
         box.contentView!.addSubview(row)
         NSLayoutConstraint.activate([row.leadingAnchor.constraint(equalTo: box.contentView!.leadingAnchor), row.trailingAnchor.constraint(equalTo: box.contentView!.trailingAnchor), row.topAnchor.constraint(equalTo: box.contentView!.topAnchor), row.bottomAnchor.constraint(equalTo: box.contentView!.bottomAnchor), box.heightAnchor.constraint(greaterThanOrEqualToConstant: 68)])
         return box
+    }
+
+    @objc private func changeAlerts() {
+        onAlertsChange(NotificationPreferences(started: alertToggles[.started]?.state == .on,
+            soon: alertToggles[.soon]?.state == .on, target: alertToggles[.target]?.state == .on,
+            full: alertToggles[.full]?.state == .on))
     }
 
     @objc private func changePreferences(_ sender: NSButton) {

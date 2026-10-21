@@ -25,7 +25,7 @@ struct Thresholds {
     private var continuousCharging = Set<String>()
     mutating func invalidateContinuity() { continuousCharging.removeAll() }
     mutating func retainContinuity(for ids: Set<String>) { continuousCharging.formIntersection(ids) }
-    mutating func consume(_ r: Reading, now: Date = Date()) -> [Int] {
+    mutating func consume(_ r: Reading, now: Date = Date(), enabled: Set<Int> = [78,80,100]) -> [Int] {
         guard r.fresh(at: now) else { continuousCharging.remove(r.id); return [] }
         let full = r.percent == 100 && r.fullChargeEvidence
         let priorCharging = continuousCharging.contains(r.id)
@@ -52,8 +52,8 @@ struct Thresholds {
         let crossed = [78, 80, 100].filter { previous < $0 && percent >= $0 && !s.sent.contains($0) }
         s.sent.formUnion(crossed)
         // A short persisted cooldown also protects against noisy idle/charging flips.
-        let eligible = crossed.filter { now.timeIntervalSince(s.lastAlert[$0] ?? .distantPast) >= 300 }
-        if let highest = eligible.max() { for threshold in crossed { s.lastAlert[threshold] = now }; s.lastAlert[highest] = now }
+        let eligible = crossed.filter { enabled.contains($0) && now.timeIntervalSince(s.lastAlert[$0] ?? .distantPast) >= 300 }
+        if let highest = eligible.max() { for threshold in eligible { s.lastAlert[threshold] = now }; s.lastAlert[highest] = now }
         s.lastSeen = r.sampled; s.lastPercent = percent; sessions[r.id] = s
         return eligible.max().map { [$0] } ?? []
     }

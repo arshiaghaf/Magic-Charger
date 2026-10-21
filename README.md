@@ -10,7 +10,7 @@ Launching or reopening the app opens native accessory cards, menu-bar preference
 
 ## Menu-bar appearance
 
-Each charging accessory has its own device glyph, exact percentage and vertical battery-level bar. Menu Bar controls independently show or hide those three elements and save the choices locally. All three default on; at least one must remain visible. No percentage is averaged across devices. VoiceOver identifies the accessory and actual level even when its device glyph is hidden.
+The Magic Mouse uses Apple’s runtime `magicmouse` SF Symbol, verified on the current system; it is not exported or bundled as app artwork. Each charging accessory has its own device glyph, exact percentage and vertical battery-level bar. Menu Bar controls independently show or hide those three elements and save the choices locally. All three default on; at least one must remain visible. No percentage is averaged across devices. VoiceOver identifies the accessory and actual level even when its device glyph is hidden.
 
 The bar rounds down to the nearest 10% step (99% is drawn as 90%; only actual 100% can draw full). Unknown level uses a dash, not an empty 0% reading. Native monochrome template artwork adapts to light, dark and highlighted menu bars. Images are regenerated only when their device/bucket/display options change; no animation timer is added. The entire status item still disappears when its device is no longer verified charging.
 
@@ -22,6 +22,10 @@ Registry matching/termination callbacks handle arrivals and removals. General-in
 
 A supported device's address, when available, is read in memory to derive an installation-keyed digest. Only that digest and session data are persisted locally; raw addresses, serials and personalized device names are not stored or logged. If the address is absent, identity is limited to the current registry service and reliable cross-reconnect deduplication is unavailable. Devices are never merged by matching name, model or percentage alone.
 
+## Notification choices
+
+Four independent switches default on and persist locally: Charging Started, Unplug Soon (78%), Unplug Reminder (80%), and Fully Charged (100%). These choices are separate from macOS permission. A disabled event is consumed without delivery, so enabling it later does not replay historical alerts. Disabling a type cancels its pending requests and prevents automatic submissions still being prepared. Test notifications remain a separate explicit user action. If a sample crosses several milestones, the highest enabled eligible milestone wins; disabled milestones do not hide enabled ones.
+
 ## Alert sessions
 
 A charging-start notification includes the current valid battery percentage after a fresh observed idle-to-charging transition. Starting the app already charging, reconnecting without a new idle observation, or recovering without a recent verified idle baseline stays quiet. A same-identity idle observation remains armed through brief unknown/transport gaps for up to90seconds, so a real plug transition is not lost during registry churn; stale observations and sleep invalidate it. Missing percentage never becomes zero. Charging-start continuity is intentionally process-local so app restart cannot replay historical starts.
@@ -30,7 +34,7 @@ A supported 100% observation can produce a once-per-session “is at 100%” not
 
 Alerts use actual threshold crossings from a fresh observed baseline, at most once per threshold per device session. Initial readings or observations after a gap of 90 seconds already above a threshold do not trigger historical alerts. Explicit idle ends a session; unknown states, disconnects, sleep and restart preserve deduplication conservatively. A persisted five-minute cooldown protects against state flapping. History is bounded to 30 days. An entire disconnect/charge/disconnect cycle while the app is absent cannot be reconstructed reliably from a single later reading.
 
-Threshold observations are consumed even when notification permission is denied, preventing historical alert replay if permission is later enabled. macOS delivery remains subject to user authorization, Focus and notification settings. Delivery errors appear in diagnostics. Notifications are advisory: no precise time-to-80 or guaranteed battery-health improvement is claimed.
+Threshold observations are consumed even when notification permission is denied, preventing historical alert replay if permission is later enabled. macOS delivery remains subject to user authorization, Focus, screen-sharing/mirroring policy and notification settings. The foreground delegate explicitly requests banner, Notification Center and sound presentation; successful submission or center receipt alone does not prove a desktop banner appeared. Technical Details shows effective authorization/alert style and whether the foreground delegate ran. Delivery errors appear in diagnostics. Notifications are advisory: no precise time-to-80 or guaranteed battery-health improvement is claimed.
 
 ## Validation status
 

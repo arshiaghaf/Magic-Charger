@@ -35,7 +35,7 @@ func snapshot(identityKey: Data) -> [Reading] {
         let fullEvidence = ChargingDecoder.fullChargeEvidence(vendor: vendor, product: productID, transport: transport,
             os: ProcessInfo.processInfo.operatingSystemVersion, percent: percent, flags: flags,
             batteryCharging: first, isCharging: second)
-        result.append(Reading(id: id, name: keyboard ? "Magic Keyboard" : "Magic Mouse", symbol: keyboard ? "keyboard" : "computermouse", percent: percent, state: state, sampled: Date(), evidence: "Transport: \(value("Transport") as? String ?? "unknown"); flags: \(flags.map(String.init) ?? "unknown"); charging: \(state.rawValue). Driver freshness unavailable. Identity: \(stableID == nil ? "registry only" : "private stable digest").", fullChargeEvidence: fullEvidence))
+        result.append(Reading(id: id, name: keyboard ? "Magic Keyboard" : "Magic Mouse", symbol: keyboard ? "keyboard" : "magicmouse", percent: percent, state: state, sampled: Date(), evidence: "Transport: \(value("Transport") as? String ?? "unknown"); flags: \(flags.map(String.init) ?? "unknown"); charging: \(state.rawValue). Driver freshness unavailable. Identity: \(stableID == nil ? "registry only" : "private stable digest").", fullChargeEvidence: fullEvidence))
     }
     return reconciled(result)
 }
@@ -48,6 +48,8 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     var items: [String: NSStatusItem] = [:]
     var itemImageSignatures: [String: String] = [:]
     var displayPreferences = MenuBarPreferences.load(.standard)
+    var alertSettings = AlertSettings(preferences: .load(.standard))
+    var alertPreferences: NotificationPreferences { alertSettings.preferences }
     func observeRegistry() {
         if port == nil {
             port = IONotificationPortCreate(kIOMainPortDefault)
@@ -105,6 +107,8 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     var identityKey = Data()
     var notificationStatus = "Notifications have not been enabled."
     var notificationFeedback = ""
+    var notificationDetails = "Notification policy has not been read."
+    var foregroundPresentation = "No foreground presentation callback observed in this process."
     var pollInterval: TimeInterval = 30
     let telemetryQueue = DispatchQueue(label: "local.magiccharger.telemetry", qos: .utility)
     let center = UNUserNotificationCenter.current()
@@ -149,7 +153,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     func render(_ readings: [Reading]) {
         latestReadings = Dictionary(uniqueKeysWithValues: readings.map { ($0.id, $0) })
         engine.retainContinuity(for: Set(readings.map { $0.id }))
-        for started in starts.consume(readings) { notifyStarted(started) }
+        for started in starts.consume(readings) where alertPreferences.started { notifyStarted(started) }
         // Reuse items so an open menu is not destroyed on each telemetry update.
         let activeIDs = Set(readings.filter { $0.active }.map { $0.id })
         for id in Array(items.keys) where !activeIDs.contains(id) {
@@ -160,9 +164,10 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         diagnostic += "\n\nMenu-bar items: \(activeIDs.count); polling: \(Int(pollInterval)) seconds.\n" + notificationStatus
         if !notificationFeedback.isEmpty { diagnostic += "\n" + notificationFeedback }
         diagnostic += "\n" + starts.lastDecisions.joined(separator: "\n")
+        diagnostic += "\n\n" + notificationDetails + "\n" + foregroundPresentation
         controls.update(readings: readings, notificationStatus: notificationStatus, feedback: notificationFeedback, diagnostic: diagnostic)
         for r in readings {
-            let thresholds = engine.consume(r)
+            let thresholds = engine.consume(r, enabled: alertPreferences.milestones)
             if !thresholds.isEmpty { notify(r, threshold: thresholds.max()!) }
             guard r.active else { continue }
             let item: NSStatusItem
@@ -202,14 +207,19 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         }
     }
     func applicationWillTerminate(_ notification: Notification) { persistSessions() }
-    func submitNotification(_ content: UNMutableNotificationContent, reading: Reading, identifier: String, full: Bool = false) {
+    func submitNotification(_ content: UNMutableNotificationContent, reading: Reading, identifier: String, kind: AlertKind, full: Bool = false) {
+        guard alertPreferences.allows(kind) else { return }
         let requestGeneration = generation
+        let requestToken = alertSettings.token(kind)
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
                 DispatchQueue.main.async { self.notificationFeedback = "Automatic alert not submitted: notification permission unavailable."; self.refresh() }
                 return
             }
             DispatchQueue.main.async {
+                guard self.alertSettings.canSubmit(kind, token: requestToken) else {
+                    self.notificationFeedback = "Automatic alert canceled: notification choice changed."; self.refresh(); return
+                }
                 guard !self.suspended, requestGeneration == self.generation,
                       reading.fresh(at: Date()), let current = self.latestReadings[reading.id], current.fresh(at: Date()) else {
                     self.notificationFeedback = "Automatic alert canceled: sleep, disconnect or stale observation."; self.refresh(); return
@@ -231,7 +241,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         content.title = "\(r.name) started charging"
         content.body = "Currently at \(percent)%"
         content.sound = .default
-        submitNotification(content, reading: r, identifier: "started-\(r.id)-\(UUID().uuidString)")
+        submitNotification(content, reading: r, identifier: "started-\(r.id)-\(UUID().uuidString)", kind: .started)
     }
     func notify(_ r: Reading, threshold: Int) {
         let content = UNMutableNotificationContent()
@@ -245,19 +255,51 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
             content.body = "Battery is currently \(r.percent ?? threshold)%. You can unplug it when convenient."
         }
         content.sound = .default
-        submitNotification(content, reading: r, identifier: "\(r.id)-\(threshold)", full: threshold == 100)
+        submitNotification(content, reading: r, identifier: "milestone-\(threshold)-\(r.id)", kind: .milestone(threshold), full: threshold == 100 || r.fullChargeEvidence)
     }
     func makeWindow() {
-        controls = ControlsWindow(target: self, enable: #selector(permissions), test: #selector(testNotification), quit: #selector(quit), preferences: displayPreferences) { [weak self] preferences in
+        controls = ControlsWindow(target: self, enable: #selector(permissions), test: #selector(testNotification), quit: #selector(quit), preferences: displayPreferences, alerts: alertPreferences, onChange: { [weak self] preferences in
             self?.displayPreferences = preferences
             preferences.save(.standard)
             self?.refresh()
-        }
+        }, onAlertsChange: { [weak self] preferences in
+            guard let self = self else { return }
+            let disabled = AlertKind.allCases.filter { !preferences.allows($0) }
+            self.alertSettings.update(preferences); preferences.save(.standard)
+            self.center.getPendingNotificationRequests { requests in
+                let identifiers = requests.filter { request in
+                    disabled.contains { kind in
+                        switch kind {
+                        case .started: return request.identifier.hasPrefix("started-")
+                        case .soon: return request.identifier.hasPrefix("milestone-78-")
+                        case .target: return request.identifier.hasPrefix("milestone-80-")
+                        case .full: return request.identifier.hasPrefix("milestone-100-")
+                        }
+                    }
+                }.map { $0.identifier }
+                self.center.removePendingNotificationRequests(withIdentifiers: identifiers)
+            }
+            self.refresh()
+        })
         window = controls.window
     }
     func updateNotificationStatus() {
         center.getNotificationSettings { settings in
             DispatchQueue.main.async {
+                func setting(_ value: UNNotificationSetting) -> String {
+                    switch value { case .enabled: return "enabled"; case .disabled: return "disabled"; case .notSupported: return "not supported"; @unknown default: return "unknown" }
+                }
+                let authorization: String
+                switch settings.authorizationStatus {
+                case .authorized: authorization = "authorized"
+                case .provisional: authorization = "provisional (quiet delivery)"
+                case .denied: authorization = "denied"
+                case .notDetermined: authorization = "not requested"
+                default: authorization = "other"
+                }
+                let style: String
+                switch settings.alertStyle { case .banner: style = "banner"; case .alert: style = "alert"; case .none: style = "none"; @unknown default: style = "unknown" }
+                self.notificationDetails = "Notification policy: authorization=\(authorization); alerts=\(setting(settings.alertSetting)); style=\(style); Notification Center=\(setting(settings.notificationCenterSetting)); sound=\(setting(settings.soundSetting)); scheduled delivery=\(setting(settings.scheduledDeliverySetting))."
                 switch settings.authorizationStatus {
                 case .authorized, .provisional: self.notificationStatus = "Notifications enabled."
                 case .denied: self.notificationStatus = "Notifications denied. Change this in System Settings if desired."
@@ -295,9 +337,15 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         }
     }
     @objc func permissions() { center.requestAuthorization(options: [.alert, .sound]) { _, _ in self.updateNotificationStatus() } }
-    @objc func showSettings() { window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+    @objc func showSettings() { window.makeKeyAndOrderFront(nil); updateNotificationStatus(); NSApp.activate(ignoringOtherApps: true) }
     @objc func quit() { NSApp.terminate(nil) }
-    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) { completionHandler([.banner, .sound]) }
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .list, .sound])
+        DispatchQueue.main.async {
+            self.foregroundPresentation = "Foreground delegate ran: requested banner, Notification Center and sound for \(notification.request.identifier.hasPrefix("test-") ? "test" : "automatic") notification."
+            self.refresh()
+        }
+    }
 }
 let app = NSApplication.shared
 let delegate = Delegate()
