@@ -1,59 +1,59 @@
 # Magic Charger
 
-An early native macOS accessory charging-notifier preview built with Swift, AppKit, IOKit and UserNotifications. No third-party dependencies. The app builds for macOS 14 or later; currently validated raw-flags profiles are limited to the model/OS combinations below. This is not a production release.
+A native macOS menu-bar utility for Magic Keyboard and Magic Mouse charging notifications. Built with Swift, AppKit, IOKit and UserNotifications, with no third-party dependencies.
 
-## Local preview
+**Early source preview.** Builds for macOS 14 or later; currently validated raw-flags profiles are limited to the model/OS combinations below. No downloadable release, Developer ID signature or notarization is provided.
 
-Run `sh build-app.sh`, then open `build/Magic Charger.app`. The script uses the active Xcode selection; an explicit `DEVELOPER_DIR` can select another installed Xcode without changing system settings. Run `swift test` for deterministic simulated checks.
+## Build and Run
 
-Launching or reopening the app opens native accessory cards, menu-bar preferences, notification controls and Quit. Technical Details opens a separate diagnostic sheet. Closing the window keeps monitoring. The app has no permanent Dock icon. It requests notification permission only when Enable Notifications is clicked. After granting permission, click Send Test for one clearly labeled native test alert; this does not change live readings or threshold/session state. Submission to macOS does not guarantee a visible banner, which depends on user settings and Focus. No login item, persistent background job, external publication or automatic power cutoff is installed.
+Requires macOS and an installed compatible Xcode/Swift 6.0-or-later toolchain.
 
-## Menu-bar appearance
+```sh
+git clone https://github.com/arshiaghaf/Magic-Charger.git
+cd Magic-Charger
+sh build-app.sh
+open "build/Magic Charger.app"
+```
 
-The Magic Mouse uses Apple’s runtime `magicmouse` SF Symbol, verified on the current system; it is not exported or bundled as app artwork. Each charging accessory has its own device glyph, exact percentage and vertical battery-level bar. Menu Bar controls independently show or hide those three elements and save the choices locally. All three default on; at least one must remain visible. No percentage is averaged across devices. VoiceOver identifies the accessory and actual level even when its device glyph is hidden.
+The script uses an explicitly supplied `DEVELOPER_DIR`, otherwise `/Applications/Xcode.app` when installed, otherwise the active developer selection. It does not change global tooling. The bundle is locally ad-hoc signed. Use `CONFIGURATION=release sh build-app.sh` for an optimized local build; the default is debug. Run `swift test` with the same compatible developer directory for deterministic checks.
 
-The bar rounds down to the nearest 10% step (99% is drawn as 90%; only actual 100% can draw full). Unknown level uses a dash, not an empty 0% reading. Native monochrome template artwork adapts to light, dark and highlighted menu bars. Images are regenerated only when their device/bucket/display options change; no animation timer is added. The entire status item still disappears when its device is no longer verified charging.
+## Magic Charger
 
-## Charging evidence
+Each verified charging accessory gets its own menu-bar item. When none qualifies, the items disappear and lightweight monitoring continues. Reopen the app from Finder or Spotlight for controls and Quit. Closing the controls window keeps monitoring; no permanent Dock icon or login item is installed.
 
-Separate narrow compatibility profiles recognize vendor 76/product 803 Magic Mouse and vendor 76/product 801 Magic Keyboard services reporting Bluetooth on macOS 27.2.x: raw flag 3 indicates charging below 100%, flag 4 indicates not charging, and all other values remain unknown. These profiles are based on separately observed controlled cable transitions, not a documented universal flag specification. Flag 3 at full charge or with missing/invalid percentage remains unknown. Other model/OS flag profiles remain unvalidated and unknown. Recognized explicit charging Booleans can also provide evidence; contradictory properties remain unknown. Conflicting observations sharing a strong device identity are suppressed. A successful build is not proof of reliable charging detection on every device or OS. Hardware-specific decoders require controlled connect/disconnect validation; USB presence alone is insufficient. At full charge, accepting current versus externally powered must not be assumed.
+Choose **Enable Notifications** and answer the native macOS prompt to receive alerts. Monitoring remains available if you decline. **Notification Settings** opens System Settings; choose Notifications > Magic Charger to change permission or presentation. **Send Test** submits one clearly labeled test without changing battery or session state. Focus and screen-sharing/mirroring policy may suppress banners even when Notification Center receives an alert.
 
-Registry matching/termination callbacks handle arrivals and removals. General-interest notifications are hints, backed by a 30-second idle/unknown poll and a 10-second charging poll. Polling improves responsiveness but cannot make driver telemetry fresher or guarantee an exact alert percentage. A fast jump across both target thresholds emits only the 80% alert; a supported jump to full selects only 100%. Sleep clears menu items; wake resamples and rejects results from before sleep. Property reads run on a utility queue.
+## Features
 
-A supported device's address, when available, is read in memory to derive an installation-keyed digest. Only that digest and session data are persisted locally; raw addresses, serials and personalized device names are not stored or logged. If the address is absent, identity is limited to the current registry service and reliable cross-reconnect deduplication is unavailable. Devices are never merged by matching name, model or percentage alone.
+- Separate device glyph, exact battery percentage and vertical level bar for each charging device; no averages.
+- Three saved menu-display choices, with at least one element visible. The monochrome native bar rounds down in 10% steps; it never draws full before actual 100%.
+- Four saved independent alert switches: Charging Started, Unplug Soon (78%), Unplug Reminder (80%), Fully Charged (100%). All default on.
+- Charging-start alerts show the actual current percentage after an observed fresh idle-to-charging transition.
+- Once-per-session milestones, skipped-level handling and conservative reconnect/restart deduplication. Disabled events do not replay when re-enabled.
+- Native accessory cards, About/version information, notification controls and secondary Technical Details.
 
-## Notification choices
+The Magic Mouse glyph is Apple's runtime `magicmouse` SF Symbol representing the accessory. Apple symbol artwork is not bundled or licensed under this project's MIT license.
 
-Four independent switches default on and persist locally: Charging Started, Unplug Soon (78%), Unplug Reminder (80%), and Fully Charged (100%). These choices are separate from macOS permission. A disabled event is consumed without delivery, so enabling it later does not replay historical alerts. Disabling a type cancels its pending requests and prevents automatic submissions still being prepared. Test notifications remain a separate explicit user action. If a sample crosses several milestones, the highest enabled eligible milestone wins; disabled milestones do not hide enabled ones.
+## Limitations
 
-## Alert sessions
+- Raw-flags profiles currently cover vendor 76/product 803 Magic Mouse and vendor 76/product 801 Magic Keyboard, reporting Bluetooth on macOS 27.2.x. Flag 3 below 100% is charging indication; flag 4 is not charging. Other values and unvalidated model/OS combinations stay unknown. These are observed compatibility profiles, not a universal documented specification.
+- Recognized explicit Boolean charging properties can provide evidence. Conflicts, missing or stale observations remain unknown. USB presence alone is insufficient.
+- At 100%, the menu item may disappear because active charging is uncertain. A supported full reading can still notify after continuous charging evidence; it does not prove that current stopped or that power bypasses the battery.
+- Polling fallback is 30 seconds idle/unknown and 10 seconds charging, alongside registry event hints. Cached driver values can still be stale, and exact alert percentages are not guaranteed.
+- Initial/recovered readings do not trigger historical alerts. An entire charging cycle while the app is absent cannot be reconstructed. Missing stable identity limits reconnect deduplication.
+- Notifications are optional reminders. There is no automatic power cutoff, precise time-to-target estimate or guaranteed battery-health improvement.
 
-A charging-start notification includes the current valid battery percentage after a fresh observed idle-to-charging transition. Starting the app already charging, reconnecting without a new idle observation, or recovering without a recent verified idle baseline stays quiet. A same-identity idle observation remains armed through brief unknown/transport gaps for up to90seconds, so a real plug transition is not lost during registry churn; stale observations and sleep invalidate it. Missing percentage never becomes zero. Charging-start continuity is intentionally process-local so app restart cannot replay historical starts.
+See [Validation](docs/VALIDATION.md) for actual evidence and pending hardware checks. App Store sandbox compatibility, signed distribution and broader device/OS support remain unverified.
 
-A supported 100% observation can produce a once-per-session “is at 100%” notification after continuous fresh charging evidence, even when active-current state becomes unknown at full. This reports percentage, not a guarantee that current stopped or that the accessory bypasses its battery. Unplugging right away is optional; the keyboard can be used while connected, whereas the mouse must be disconnected for use. Initial/recovered/stale/conflicting full readings stay quiet. A large jump selects only its highest milestone and consumes lower milestones.
+## Privacy and Security
 
-Alerts use actual threshold crossings from a fresh observed baseline, at most once per threshold per device session. Initial readings or observations after a gap of 90 seconds already above a threshold do not trigger historical alerts. Explicit idle ends a session; unknown states, disconnects, sleep and restart preserve deduplication conservatively. A persisted five-minute cooldown protects against state flapping. History is bounded to 30 days. An entire disconnect/charge/disconnect cycle while the app is absent cannot be reconstructed reliably from a single later reading.
+The app has no network client, analytics, accounts or cloud service. It reads only relevant accessory telemetry and never captures input. A supported accessory address is read transiently to derive an installation-keyed HMAC identity; raw addresses, serials and personalized device names are not stored or logged. Local preferences, the identity key, digests and bounded notification-session history use UserDefaults.
 
-Threshold observations are consumed even when notification permission is denied, preventing historical alert replay if permission is later enabled. macOS delivery remains subject to user authorization, Focus, screen-sharing/mirroring policy and notification settings. The foreground delegate explicitly requests banner, Notification Center and sound presentation; successful submission or center receipt alone does not prove a desktop banner appeared. Technical Details shows effective authorization/alert style and whether the foreground delegate ran. Delivery errors appear in diagnostics. Notifications are advisory: no precise time-to-80 or guaranteed battery-health improvement is claimed.
+Read the [privacy details](docs/PRIVACY.md), [support guidance](SUPPORT.md) and [security reporting policy](SECURITY.md). Public registry APIs are used; private accessory IOPowerSources APIs are not used. Undocumented registry property semantics remain a compatibility risk.
 
-## Validation status
+## Contributing
 
-The current profiles have separately observed cable plug/unplug flag transitions. Automatic menu-bar appearance/disappearance has user-confirmed evidence in the mouse profile context. Deterministic tests cover both profiles, full/unknown/conflicting states, threshold crossings and notification deduplication. A user-triggered native test notification has user-confirmed delivery. Actual charging-start, 78%/80% and full hardware-triggered notification delivery, live keyboard charging UI, full-but-connected behavior and sleep/wake/reconnect behavior still need separate verification. A test-alert control is available; submission alone is not proof of delivery. No release binary is supplied.
-
-## Hardware validation
-
-For each model and OS separately:
-
-1. With its cable unplugged, record only generic model, vendor/product IDs, transport, percentage, charging fields, raw battery flags and observation time. Do not record raw addresses, serials or personalized names.
-2. Plug the accessory into the Mac using a known charging cable. Confirm the physical action; take narrow snapshots immediately and after a percentage update. Compare charging fields and flags, without using USB presence as proof.
-3. Unplug once and verify the reverse transition, status-item disappearance and continued background monitoring. Reconnect and confirm the private identity remains the same without exposing it.
-4. Repeat at relevant battery levels. Validate keyboard separately. Treat full charge and unknown/stale states separately. Real 78/80 notification delivery requires permission and real crossings; deterministic tests cover skipped values without charging hardware artificially.
-
-## Implementation references
-
-Public registry notification mechanisms: [IOKit](https://developer.apple.com/documentation/iokit), [Apple notification source](https://github.com/apple-oss-distributions/IOKitUser/blob/main/ionotifyCB.c). Accessory-specific IOPowerSources functions in [IOPowerSourcesPrivate.h](https://github.com/apple-oss-distributions/IOKitUser/blob/main/ps.subproj/IOPowerSourcesPrivate.h) are private and are not used. UI uses [NSStatusBar](https://developer.apple.com/documentation/appkit/nsstatusbar) and [LSUIElement](https://developer.apple.com/documentation/bundleresources/information-property-list/lsuielement). Use an installed compatible [Swift toolchain](https://www.swift.org/install/macos/).
-
-No third-party implementation was copied.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Keep changes focused, run the local checks and distinguish simulated tests from real hardware evidence. [Architecture](docs/ARCHITECTURE.md) describes the monitoring and notification paths. CI compiles, tests and validates bundle packaging; it cannot validate charging hardware.
 
 ## License
 

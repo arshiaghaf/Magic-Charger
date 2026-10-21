@@ -336,7 +336,26 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
             }
         }
     }
-    @objc func permissions() { center.requestAuthorization(options: [.alert, .sound]) { _, _ in self.updateNotificationStatus() } }
+    @objc func permissions() {
+        center.getNotificationSettings { settings in
+            if settings.authorizationStatus == .notDetermined {
+                self.center.requestAuthorization(options: [.alert, .sound]) { _, error in
+                    DispatchQueue.main.async {
+                        if error != nil { self.notificationFeedback = "Notification permission request failed. See System Settings > Notifications." }
+                        self.updateNotificationStatus()
+                    }
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.notificationFeedback = "Open Notifications in System Settings and select Magic Charger."
+                    NSWorkspace.shared.openApplication(at: URL(fileURLWithPath: "/System/Applications/System Settings.app"), configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                        if error != nil { DispatchQueue.main.async { self.notificationFeedback = "System Settings could not be opened. Open Notifications manually."; self.refresh() } }
+                    }
+                    self.refresh()
+                }
+            }
+        }
+    }
     @objc func showSettings() { window.makeKeyAndOrderFront(nil); updateNotificationStatus(); NSApp.activate(ignoringOtherApps: true) }
     @objc func quit() { NSApp.terminate(nil) }
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {

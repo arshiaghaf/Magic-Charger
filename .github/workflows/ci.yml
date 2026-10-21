@@ -1,0 +1,29 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: swift --version
+      - name: Deterministic tests
+        run: swift test
+      - name: Build local app
+        run: sh build-app.sh
+      - name: Verify bundle
+        run: |
+          codesign --verify --strict "build/Magic Charger.app"
+          plutil -lint "build/Magic Charger.app/Contents/Info.plist"
+          cmp LICENSE "build/Magic Charger.app/Contents/Resources/LICENSE"

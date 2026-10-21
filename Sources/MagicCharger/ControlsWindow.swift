@@ -65,7 +65,8 @@ final class ControlsWindow: NSWindowController {
         let details = NSButton(title: "Technical Details…", target: self, action: #selector(showDetails)); details.bezelStyle = .inline
         let quitButton = NSButton(title: "Quit Magic Charger", target: target, action: quit); quitButton.keyEquivalent = "q"; quitButton.keyEquivalentModifierMask = .command
         let spacer = NSView(); spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        let footer = NSStackView(views: [details, spacer, quitButton]); footer.spacing = 12
+        let about = NSButton(title: "About", target: self, action: #selector(showAbout)); about.bezelStyle = .inline
+        let footer = NSStackView(views: [details, about, spacer, quitButton]); footer.spacing = 12
         for view in [heading, devices, menuOptions, notifications, footer] { stack.addArrangedSubview(view); view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
         content.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 26), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -22)])
@@ -75,7 +76,7 @@ final class ControlsWindow: NSWindowController {
     func update(readings: [Reading], notificationStatus: String, feedback message: String, diagnostic: String) {
         self.diagnostic = diagnostic
         let sorted = readings.sorted { $0.name < $1.name }
-        let signature = sorted.map { "\($0.id):\($0.percent ?? -1):\($0.state.rawValue)" }.joined(separator: ";")
+        let signature = sorted.map { "\($0.id):\($0.percent ?? -1):\($0.state.rawValue):\($0.fullChargeEvidence)" }.joined(separator: ";")
         if signature != deviceSignature || devices.arrangedSubviews.isEmpty {
             deviceSignature = signature
             devices.arrangedSubviews.forEach { devices.removeArrangedSubview($0); $0.removeFromSuperview() }
@@ -99,11 +100,21 @@ final class ControlsWindow: NSWindowController {
         }
         let enabled = notificationStatus == "Notifications enabled."
         notificationLabel.stringValue = enabled ? "Allowed by macOS" : (notificationStatus.contains("denied") ? "Off · Enable in System Settings" : "Not enabled")
-        enableButton.isHidden = enabled
+        enableButton.title = notificationStatus.contains("not requested") ? "Enable Notifications…" : "Notification Settings…"
+        enableButton.isHidden = false
         testButton.isEnabled = enabled
         if message.hasPrefix("Test submitted") { feedback.stringValue = "Test sent to macOS. Check Notification Center if needed."; feedback.isHidden = false }
+        else if message.hasPrefix("Open Notifications") || message.hasPrefix("System Settings") { feedback.stringValue = message; feedback.isHidden = false }
         else if message.hasPrefix("Test not sent") || message.contains("failed") { feedback.stringValue = "Notification wasn’t sent. See Technical Details."; feedback.isHidden = false }
         else { feedback.isHidden = true }
+    }
+
+    @objc private func showAbout() {
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "Magic Charger",
+            .applicationVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Development",
+            .credits: NSAttributedString(string: "MIT License · Copyright © 2026 Arshia Ghaf\nLocal accessory charging notifications.")
+        ])
     }
 
     private func card(_ reading: Reading) -> NSView {
