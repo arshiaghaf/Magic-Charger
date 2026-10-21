@@ -27,12 +27,14 @@ func snapshot(identityKey: Data) -> [Reading] {
             return number.boolValue
         }
         let first = boolean("BatteryCharging"), second = boolean("IsCharging")
-        let explicit = (first != nil && second != nil && first != second) ? nil : (first ?? second)
-        let state: Charging = explicit.map { $0 ? .charging : .idle } ?? .unknown
         let flags = value("BatteryStatusFlags") as? Int
+        let transport = value("Transport") as? String
+        let state = ChargingDecoder.decode(vendor: vendor, product: productID, transport: transport,
+            os: ProcessInfo.processInfo.operatingSystemVersion, percent: percent, flags: flags,
+            batteryCharging: first, isCharging: second)
         result.append(Reading(id: id, name: keyboard ? "Magic Keyboard" : "Magic Mouse", symbol: keyboard ? "keyboard" : "computermouse", percent: percent, state: state, sampled: Date(), evidence: "Transport: \(value("Transport") as? String ?? "unknown"); flags: \(flags.map(String.init) ?? "unknown"); charging: \(state.rawValue). Driver freshness unavailable. Identity: \(stableID == nil ? "registry only" : "private stable digest")."))
     }
-    return result
+    return reconciled(result)
 }
 
 final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -138,7 +140,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         for id in Array(items.keys) where !activeIDs.contains(id) { NSStatusBar.system.removeStatusItem(items.removeValue(forKey: id)!) }
         schedulePolling(activeIDs.isEmpty ? 30 : 10)
         label.stringValue = readings.isEmpty ? "No supported accessories detected.\nMonitoring every 30 seconds." : readings.map { "\($0.name): \($0.percent.map { "\($0)%" } ?? "unknown") — \($0.state.rawValue)\n\($0.evidence)" }.joined(separator: "\n\n")
-        label.stringValue += "\n\n" + notificationStatus
+        label.stringValue += "\n\nMenu-bar items: \(activeIDs.count); polling: \(Int(pollInterval)) seconds.\n" + notificationStatus
         for r in readings {
             let thresholds = engine.consume(r)
             if !thresholds.isEmpty { notify(r, threshold: thresholds.max()!) }
@@ -169,7 +171,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 16; stack.translatesAutoresizingMaskIntoConstraints = false
         let title = NSTextField(labelWithString: "Magic Charger"); title.font = .boldSystemFont(ofSize: 23)
         label = NSTextField(wrappingLabelWithString: ""); label.font = .systemFont(ofSize: 12)
-        let note = NSTextField(wrappingLabelWithString: "Appears in the menu bar only with explicit charging evidence. Raw flags remain unknown pending hardware validation. Relaunch this app to open these controls. Alerts at 78% and 80%; no automatic power cutoff.")
+        let note = NSTextField(wrappingLabelWithString: "Menu-bar items require recognized charging evidence. The validated mouse profile uses a charging indication below full; other raw flags remain unknown. Relaunch this app to open these controls. Alerts at 78% and 80%; no automatic power cutoff.")
         let permission = NSButton(title: "Enable Notifications…", target: self, action: #selector(permissions))
         let quit = NSButton(title: "Quit Magic Charger", target: self, action: #selector(quit))
         [title, label, note, permission, quit].forEach(stack.addArrangedSubview)

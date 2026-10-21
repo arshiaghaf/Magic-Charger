@@ -1,0 +1,43 @@
+import XCTest
+@testable import MagicCharger
+final class ChargingDecoderTests: XCTestCase {
+    let os = OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 0)
+    func decode(_ flags: Int?, percent: Int? = 65, vendor: Int = 76, product: Int = 803,
+                transport: String? = "Bluetooth", system: OperatingSystemVersion? = nil,
+                a: Bool? = nil, b: Bool? = nil) -> Charging {
+        ChargingDecoder.decode(vendor: vendor, product: product, transport: transport, os: system ?? os,
+                               percent: percent, flags: flags, batteryCharging: a, isCharging: b)
+    }
+    func testScopedCableTransitionAndFullUncertainty() {
+        XCTAssertEqual(decode(4), .idle)
+        XCTAssertEqual(decode(3), .charging)
+        XCTAssertEqual(decode(4), .idle)
+        for p in [nil, 100, 101, -1] as [Int?] { XCTAssertEqual(decode(3, percent: p), .unknown) }
+        for flag in [nil, 0, 1, 2, 5, 255] as [Int?] { XCTAssertEqual(decode(flag), .unknown) }
+    }
+    func testUnvalidatedProfilesAndContradictionsStayUnknown() {
+        XCTAssertEqual(decode(3, product: 801), .unknown)
+        XCTAssertEqual(decode(4, product: 801), .unknown)
+        XCTAssertEqual(decode(3, vendor: 1452), .unknown)
+        XCTAssertEqual(decode(3, transport: "USB"), .unknown)
+        XCTAssertEqual(decode(3, system: .init(majorVersion: 27, minorVersion: 1, patchVersion: 0)), .unknown)
+        XCTAssertEqual(decode(3, system: .init(majorVersion: 28, minorVersion: 2, patchVersion: 0)), .unknown)
+        XCTAssertEqual(decode(3, a: false), .unknown)
+        XCTAssertEqual(decode(4, a: true), .unknown)
+        XCTAssertEqual(decode(3, a: true, b: false), .unknown)
+    }
+    func testDuplicateConflictAndFreshMenuEligibility() {
+        let now = Date()
+        func r(_ state: Charging, percent: Int? = 65, id: String = "a", date: Date? = nil) -> Reading {
+            Reading(id: id, name: "Simulation", symbol: "computermouse", percent: percent, state: state,
+                    sampled: date ?? now, evidence: "SIMULATED")
+        }
+        XCTAssertTrue(r(decode(3)).active)
+        XCTAssertFalse(r(decode(4)).active)
+        XCTAssertFalse(r(.charging, date: now.addingTimeInterval(-91)).active)
+        XCTAssertEqual(reconciled([r(.charging), r(.idle)]).first?.state, .unknown)
+        XCTAssertEqual(reconciled([r(.charging), r(.charging, percent: 66)]).first?.state, .unknown)
+        XCTAssertEqual(reconciled([r(.charging), r(.charging)]).count, 1)
+        XCTAssertEqual(reconciled([r(.charging), r(.idle, id: "b")]).count, 2)
+    }
+}
