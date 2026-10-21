@@ -32,7 +32,10 @@ func snapshot(identityKey: Data) -> [Reading] {
         let state = ChargingDecoder.decode(vendor: vendor, product: productID, transport: transport,
             os: ProcessInfo.processInfo.operatingSystemVersion, percent: percent, flags: flags,
             batteryCharging: first, isCharging: second)
-        result.append(Reading(id: id, name: keyboard ? "Magic Keyboard" : "Magic Mouse", symbol: keyboard ? "keyboard" : "computermouse", percent: percent, state: state, sampled: Date(), evidence: "Transport: \(value("Transport") as? String ?? "unknown"); flags: \(flags.map(String.init) ?? "unknown"); charging: \(state.rawValue). Driver freshness unavailable. Identity: \(stableID == nil ? "registry only" : "private stable digest")."))
+        let fullEvidence = ChargingDecoder.fullChargeEvidence(vendor: vendor, product: productID, transport: transport,
+            os: ProcessInfo.processInfo.operatingSystemVersion, percent: percent, flags: flags,
+            batteryCharging: first, isCharging: second)
+        result.append(Reading(id: id, name: keyboard ? "Magic Keyboard" : "Magic Mouse", symbol: keyboard ? "keyboard" : "computermouse", percent: percent, state: state, sampled: Date(), evidence: "Transport: \(value("Transport") as? String ?? "unknown"); flags: \(flags.map(String.init) ?? "unknown"); charging: \(state.rawValue). Driver freshness unavailable. Identity: \(stableID == nil ? "registry only" : "private stable digest").", fullChargeEvidence: fullEvidence))
     }
     return reconciled(result)
 }
@@ -41,6 +44,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     var matchingIterators: [io_iterator_t] = []
     var port: IONotificationPortRef?
     var interests: [UInt64: io_object_t] = [:]
+    var registryDirty = true
     var items: [String: NSStatusItem] = [:]
     func observeRegistry() {
         if port == nil {
@@ -53,7 +57,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
                         while true { let object = IOIteratorNext(iterator); if object == 0 { break }; IOObjectRelease(object) }
                         guard let context = context else { return }
                         let owner = Unmanaged<Delegate>.fromOpaque(context).takeUnretainedValue()
-                        DispatchQueue.main.async { owner.refresh() }
+                        DispatchQueue.main.async { owner.registryDirty = true; owner.refresh() }
                     }, Unmanaged.passUnretained(self).toOpaque(), &iterator)
                     if code == KERN_SUCCESS {
                         matchingIterators.append(iterator)
@@ -62,7 +66,8 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
                 }
             }
         }
-        guard let port = port else { return }
+        guard let port = port, registryDirty else { return }
+        registryDirty = false
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("AppleDeviceManagementHIDEventService"), &iterator) == KERN_SUCCESS else { return }
         defer { IOObjectRelease(iterator) }
@@ -86,6 +91,10 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     var label: NSTextField!
     var timer: Timer?
     var engine = Thresholds()
+    var starts = ChargingStarts()
+    var latestReadings: [String: Reading] = [:]
+    var lastPersistedAt = Date.distantPast
+    var lastSessionSignature = ""
     var observations: [NSObjectProtocol] = []
     var suspended = false
     var refreshing = false
@@ -109,7 +118,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         makeWindow(); refresh(); showSettings()
         schedulePolling(30)
         let nc = NSWorkspace.shared.notificationCenter
-        observations.append(nc.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in self?.suspended = true; self?.generation += 1; self?.clearItems() })
+        observations.append(nc.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in self?.suspended = true; self?.generation += 1; self?.starts.invalidate(); self?.engine.invalidateContinuity(); self?.clearItems() })
         observations.append(nc.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.suspended = false; self?.generation += 1; self?.refresh() })
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showSettings(); return true }
@@ -136,36 +145,84 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         }
     }
     func render(_ readings: [Reading]) {
+        latestReadings = Dictionary(uniqueKeysWithValues: readings.map { ($0.id, $0) })
+        engine.retainContinuity(for: Set(readings.map { $0.id }))
+        for started in starts.consume(readings) { notifyStarted(started) }
         // Reuse items so an open menu is not destroyed on each telemetry update.
         let activeIDs = Set(readings.filter { $0.active }.map { $0.id })
         for id in Array(items.keys) where !activeIDs.contains(id) { NSStatusBar.system.removeStatusItem(items.removeValue(forKey: id)!) }
         schedulePolling(activeIDs.isEmpty ? 30 : 10)
-        label.stringValue = readings.isEmpty ? "No supported accessories detected.\nMonitoring every 30 seconds." : readings.map { "\($0.name): \($0.percent.map { "\($0)%" } ?? "unknown") — \($0.state.rawValue)\n\($0.evidence)" }.joined(separator: "\n\n")
-        label.stringValue += "\n\nMenu-bar items: \(activeIDs.count); polling: \(Int(pollInterval)) seconds.\n" + notificationStatus
-        if !notificationFeedback.isEmpty { label.stringValue += "\n" + notificationFeedback }
+        var diagnostic = readings.isEmpty ? "No supported accessories detected.\nMonitoring every 30 seconds." : readings.map { "\($0.name): \($0.percent.map { "\($0)%" } ?? "unknown") — \($0.state.rawValue)\n\($0.evidence)" }.joined(separator: "\n\n")
+        diagnostic += "\n\nMenu-bar items: \(activeIDs.count); polling: \(Int(pollInterval)) seconds.\n" + notificationStatus
+        if !notificationFeedback.isEmpty { diagnostic += "\n" + notificationFeedback }
+        if label.stringValue != diagnostic { label.stringValue = diagnostic }
         for r in readings {
             let thresholds = engine.consume(r)
             if !thresholds.isEmpty { notify(r, threshold: thresholds.max()!) }
             guard r.active else { continue }
-            let item = items[r.id] ?? NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-            items[r.id] = item
-            item.button?.image = NSImage(systemSymbolName: r.symbol, accessibilityDescription: r.name)
-            item.button?.title = " \(r.percent.map { "\($0)%" } ?? "?") ⚡"
-            let menu = NSMenu(); menu.addItem(withTitle: "\(r.name) — Charging", action: nil, keyEquivalent: "")
-            menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
-            menu.addItem(withTitle: "Quit Magic Charger", action: #selector(quit), keyEquivalent: "q").target = self
-            if item.menu == nil { item.menu = menu }
+            let item: NSStatusItem
+            if let existing = items[r.id] { item = existing }
+            else {
+                item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+                items[r.id] = item
+                item.button?.image = NSImage(systemSymbolName: r.symbol, accessibilityDescription: r.name)
+                let menu = NSMenu(); menu.addItem(withTitle: "\(r.name) — Charging", action: nil, keyEquivalent: "")
+                menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
+                menu.addItem(withTitle: "Quit Magic Charger", action: #selector(quit), keyEquivalent: "q").target = self
+                item.menu = menu
+            }
+            let title = " \(r.percent.map { "\($0)%" } ?? "?") ⚡"
+            if item.button?.title != title { item.button?.title = title }
         }
-        if let data = try? JSONEncoder().encode(engine.sessions) { UserDefaults.standard.set(data, forKey: storage) }
+        let signature = engine.sessions.sorted { $0.key < $1.key }.map {
+            "\($0.key):\($0.value.sent.sorted()):\($0.value.lastPercent ?? -1):\($0.value.ended)"
+        }.joined(separator: ";")
+        if signature != lastSessionSignature || (!activeIDs.isEmpty && Date().timeIntervalSince(lastPersistedAt) >= 60) {
+            persistSessions(); lastSessionSignature = signature
+        }
     }
-    func notify(_ r: Reading, threshold: Int) {
+    func persistSessions() {
+        if let data = try? JSONEncoder().encode(engine.sessions) {
+            UserDefaults.standard.set(data, forKey: storage); lastPersistedAt = Date()
+        }
+    }
+    func applicationWillTerminate(_ notification: Notification) { persistSessions() }
+    func submitNotification(_ content: UNMutableNotificationContent, reading: Reading, identifier: String, full: Bool = false) {
+        let requestGeneration = generation
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
-            let content = UNMutableNotificationContent(); content.title = "\(r.name) reached \(threshold)%"; content.body = "Battery is currently \(r.percent ?? threshold)%. You can unplug it when convenient."; content.sound = .default
-            self.center.add(UNNotificationRequest(identifier: "\(r.id)-\(threshold)", content: content, trigger: nil)) { error in
-                if error != nil { DispatchQueue.main.async { self.notificationStatus = "Notification delivery failed; check notification settings." } }
+            DispatchQueue.main.async {
+                guard !self.suspended, requestGeneration == self.generation,
+                      reading.fresh(at: Date()), let current = self.latestReadings[reading.id], current.fresh(at: Date()) else { return }
+                let stillValid = full ? (current.percent == 100 && current.fullChargeEvidence) : current.active
+                guard stillValid else { return }
+                self.center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { error in
+                    if error != nil { DispatchQueue.main.async { self.notificationStatus = "Notification submission failed; check notification settings." } }
+                }
             }
         }
+    }
+    func notifyStarted(_ r: Reading) {
+        guard let percent = r.percent, (0...100).contains(percent) else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "\(r.name) started charging"
+        content.body = "Battery is currently \(percent)%."
+        content.sound = .default
+        submitNotification(content, reading: r, identifier: "started-\(r.id)-\(UUID().uuidString)")
+    }
+    func notify(_ r: Reading, threshold: Int) {
+        let content = UNMutableNotificationContent()
+        if threshold == 100 {
+            content.title = "\(r.name) is at 100%"
+            content.body = r.symbol == "keyboard"
+                ? "No need to unplug right away. You can keep using your keyboard while it’s connected."
+                : "No need to unplug right away. Disconnect it whenever you’re ready to use it."
+        } else {
+            content.title = "\(r.name) reached \(threshold)%"
+            content.body = "Battery is currently \(r.percent ?? threshold)%. You can unplug it when convenient."
+        }
+        content.sound = .default
+        submitNotification(content, reading: r, identifier: "\(r.id)-\(threshold)", full: threshold == 100)
     }
     func makeWindow() {
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 440), styleMask: [.titled, .closable], backing: .buffered, defer: false)
@@ -173,7 +230,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 16; stack.translatesAutoresizingMaskIntoConstraints = false
         let title = NSTextField(labelWithString: "Magic Charger"); title.font = .boldSystemFont(ofSize: 23)
         label = NSTextField(wrappingLabelWithString: ""); label.font = .systemFont(ofSize: 12)
-        let note = NSTextField(wrappingLabelWithString: "Menu-bar items require recognized charging evidence. Validated accessory profiles use a charging indication below full; other raw flags remain unknown. Relaunch this app to open these controls. Alerts at 78% and 80%; no automatic power cutoff.")
+        let note = NSTextField(wrappingLabelWithString: "Menu-bar items require recognized charging evidence. Validated accessory profiles use a charging indication below full; other raw flags remain unknown. Relaunch this app to open these controls. Charging-start alerts show the current percentage; target alerts at 78% and 80%. No automatic power cutoff.")
         let permission = NSButton(title: "Enable Notifications…", target: self, action: #selector(permissions))
         let test = NSButton(title: "Send Test Notification", target: self, action: #selector(testNotification))
         let quit = NSButton(title: "Quit Magic Charger", target: self, action: #selector(quit))
