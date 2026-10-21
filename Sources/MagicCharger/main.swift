@@ -93,6 +93,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     var generation = 0
     var identityKey = Data()
     var notificationStatus = "Notifications have not been enabled."
+    var notificationFeedback = ""
     var pollInterval: TimeInterval = 30
     let telemetryQueue = DispatchQueue(label: "local.magiccharger.telemetry", qos: .utility)
     let center = UNUserNotificationCenter.current()
@@ -141,6 +142,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         schedulePolling(activeIDs.isEmpty ? 30 : 10)
         label.stringValue = readings.isEmpty ? "No supported accessories detected.\nMonitoring every 30 seconds." : readings.map { "\($0.name): \($0.percent.map { "\($0)%" } ?? "unknown") — \($0.state.rawValue)\n\($0.evidence)" }.joined(separator: "\n\n")
         label.stringValue += "\n\nMenu-bar items: \(activeIDs.count); polling: \(Int(pollInterval)) seconds.\n" + notificationStatus
+        if !notificationFeedback.isEmpty { label.stringValue += "\n" + notificationFeedback }
         for r in readings {
             let thresholds = engine.consume(r)
             if !thresholds.isEmpty { notify(r, threshold: thresholds.max()!) }
@@ -166,15 +168,16 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         }
     }
     func makeWindow() {
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 350), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 440), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Magic Charger"; window.isReleasedWhenClosed = false; window.center()
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 16; stack.translatesAutoresizingMaskIntoConstraints = false
         let title = NSTextField(labelWithString: "Magic Charger"); title.font = .boldSystemFont(ofSize: 23)
         label = NSTextField(wrappingLabelWithString: ""); label.font = .systemFont(ofSize: 12)
         let note = NSTextField(wrappingLabelWithString: "Menu-bar items require recognized charging evidence. Validated accessory profiles use a charging indication below full; other raw flags remain unknown. Relaunch this app to open these controls. Alerts at 78% and 80%; no automatic power cutoff.")
         let permission = NSButton(title: "Enable Notifications…", target: self, action: #selector(permissions))
+        let test = NSButton(title: "Send Test Notification", target: self, action: #selector(testNotification))
         let quit = NSButton(title: "Quit Magic Charger", target: self, action: #selector(quit))
-        [title, label, note, permission, quit].forEach(stack.addArrangedSubview)
+        [title, label, note, permission, test, quit].forEach(stack.addArrangedSubview)
         window.contentView!.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 24)])
     }
@@ -184,7 +187,35 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
                 switch settings.authorizationStatus {
                 case .authorized, .provisional: self.notificationStatus = "Notifications enabled."
                 case .denied: self.notificationStatus = "Notifications denied. Change this in System Settings if desired."
-                default: self.notificationStatus = "Use Enable Notifications to allow alerts."
+                case .notDetermined: self.notificationStatus = "Notification permission not requested. Use Enable Notifications to allow alerts."
+                default: self.notificationStatus = "Notification authorization unavailable."
+                }
+                self.refresh()
+            }
+        }
+    }
+    @objc func testNotification() {
+        // User-triggered test only. Never inject a battery sample or touch dedup state.
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+                DispatchQueue.main.async {
+                    self.notificationFeedback = settings.authorizationStatus == .notDetermined
+                        ? "Test not sent. Click Enable Notifications and answer the macOS prompt first."
+                        : "Test not sent. Notification permission is not enabled."
+                    self.updateNotificationStatus()
+                }
+                return
+            }
+            let content = UNMutableNotificationContent()
+            content.title = "Magic Charger — Test Notification"
+            content.body = "This is a user-requested notification test. No battery threshold was crossed."
+            content.sound = .default
+            self.center.add(UNNotificationRequest(identifier: "test-" + UUID().uuidString, content: content, trigger: nil)) { error in
+                DispatchQueue.main.async {
+                    self.notificationFeedback = error == nil
+                        ? "Test submitted to macOS. Confirm whether its banner appeared; Focus may suppress it."
+                        : "Test submission failed. Check notification settings."
+                    self.refresh()
                 }
             }
         }

@@ -6,7 +6,7 @@ A lightweight native macOS accessory battery notifier built with Swift, AppKit, 
 
 Run `sh build-app.sh`, then open `build/Magic Charger.app`. The script uses the active Xcode selection; an explicit `DEVELOPER_DIR` can select another installed Xcode without changing system settings. Run `swift test` for deterministic simulated checks.
 
-Launching or reopening the app opens diagnostics, notification permission and Quit controls. Closing the window keeps monitoring. The app has no permanent Dock icon. It requests notification permission only when Enable Notifications is clicked. No login item, persistent background job, external publication or automatic power cutoff is installed.
+Launching or reopening the app opens diagnostics, notification permission and Quit controls. Closing the window keeps monitoring. The app has no permanent Dock icon. It requests notification permission only when Enable Notifications is clicked. After granting permission, click Send Test Notification for one clearly labeled native test alert; this does not change live readings or threshold/session state. Submission to macOS does not guarantee a visible banner, which depends on user settings and Focus. No login item, persistent background job, external publication or automatic power cutoff is installed.
 
 ## Charging evidence
 
