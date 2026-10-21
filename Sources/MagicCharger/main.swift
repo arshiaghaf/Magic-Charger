@@ -215,7 +215,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         guard let percent = r.percent, (0...100).contains(percent) else { return }
         let content = UNMutableNotificationContent()
         content.title = "\(r.name) started charging"
-        content.body = "Battery is currently \(percent)%."
+        content.body = "Currently @ \(percent)%"
         content.sound = .default
         submitNotification(content, reading: r, identifier: "started-\(r.id)-\(UUID().uuidString)")
     }
