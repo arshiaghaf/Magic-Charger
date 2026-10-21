@@ -62,16 +62,41 @@ struct Thresholds {
 // Process-local continuity is intentional: a restart must establish a new
 // baseline, never replay a historical "started" event from persisted state.
 struct ChargingStarts {
-    private var previous: [String: Reading] = [:]
-    mutating func invalidate() { previous.removeAll() }
+    private var armedIdle: [String: Reading] = [:]
+    private(set) var lastDecisions: [String] = []
+    mutating func invalidate() { armedIdle.removeAll(); lastDecisions.removeAll() }
     mutating func consume(_ readings: [Reading], now: Date = Date()) -> [Reading] {
-        let current = reconciled(readings)
-        defer { previous = Dictionary(uniqueKeysWithValues: current.map { ($0.id, $0) }) }
-        return current.filter { r in
-            guard r.fresh(at: now), r.state == .charging,
-                  let percent = r.percent, (0...100).contains(percent),
-                  let old = previous[r.id], old.fresh(at: now), old.state == .idle else { return false }
-            return true
+        // A short transport gap is not proof that a fresh observed idle ended.
+        // Only a same-identity idle sample can arm a start, and it expires in90s.
+        armedIdle = armedIdle.filter { $0.value.fresh(at: now) }
+        lastDecisions = []
+        var result: [Reading] = []
+        for r in reconciled(readings) {
+            guard r.fresh(at: now) else {
+                armedIdle.removeValue(forKey: r.id)
+                lastDecisions.append("\(r.name): stale observation; start not armed")
+                continue
+            }
+            switch r.state {
+            case .idle:
+                armedIdle[r.id] = r
+                lastDecisions.append("\(r.name): idle observed; next fresh charging transition armed")
+            case .unknown:
+                lastDecisions.append("\(r.name): unknown; \(armedIdle[r.id] == nil ? "no verified idle baseline" : "recent idle retained briefly")")
+            case .charging:
+                let idle = armedIdle.removeValue(forKey: r.id)
+                guard let idle = idle, idle.fresh(at: now) else {
+                    lastDecisions.append("\(r.name): charging baseline; no new idle transition")
+                    continue
+                }
+                guard let percent = r.percent, (0...100).contains(percent) else {
+                    lastDecisions.append("\(r.name): start skipped; battery percentage unavailable")
+                    continue
+                }
+                result.append(r)
+                lastDecisions.append("\(r.name): verified charging start selected")
+            }
         }
+        return result
     }
 }

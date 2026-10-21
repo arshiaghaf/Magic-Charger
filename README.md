@@ -18,7 +18,7 @@ A supported device's address, when available, is read in memory to derive an ins
 
 ## Alert sessions
 
-A charging-start notification includes the current valid battery percentage after a fresh observed idle-to-charging transition. Starting the app already charging, reconnecting without a new idle observation, or recovering from unknown/stale data establishes a quiet baseline. Missing percentage never becomes zero. Charging-start continuity is intentionally process-local so app restart cannot replay historical starts.
+A charging-start notification includes the current valid battery percentage after a fresh observed idle-to-charging transition. Starting the app already charging, reconnecting without a new idle observation, or recovering without a recent verified idle baseline stays quiet. A same-identity idle observation remains armed through brief unknown/transport gaps for up to90seconds, so a real plug transition is not lost during registry churn; stale observations and sleep invalidate it. Missing percentage never becomes zero. Charging-start continuity is intentionally process-local so app restart cannot replay historical starts.
 
 A supported 100% observation can produce a once-per-session “is at 100%” notification after continuous fresh charging evidence, even when active-current state becomes unknown at full. This reports percentage, not a guarantee that current stopped or that the accessory bypasses its battery. Unplugging right away is optional; the keyboard can be used while connected, whereas the mouse must be disconnected for use. Initial/recovered/stale/conflicting full readings stay quiet. A large jump selects only its highest milestone and consumes lower milestones.
 

@@ -155,6 +155,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         var diagnostic = readings.isEmpty ? "No supported accessories detected.\nMonitoring every 30 seconds." : readings.map { "\($0.name): \($0.percent.map { "\($0)%" } ?? "unknown") — \($0.state.rawValue)\n\($0.evidence)" }.joined(separator: "\n\n")
         diagnostic += "\n\nMenu-bar items: \(activeIDs.count); polling: \(Int(pollInterval)) seconds.\n" + notificationStatus
         if !notificationFeedback.isEmpty { diagnostic += "\n" + notificationFeedback }
+        diagnostic += "\n" + starts.lastDecisions.joined(separator: "\n")
         if label.stringValue != diagnostic { label.stringValue = diagnostic }
         for r in readings {
             let thresholds = engine.consume(r)
@@ -190,14 +191,22 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     func submitNotification(_ content: UNMutableNotificationContent, reading: Reading, identifier: String, full: Bool = false) {
         let requestGeneration = generation
         center.getNotificationSettings { settings in
-            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
+            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+                DispatchQueue.main.async { self.notificationFeedback = "Automatic alert not submitted: notification permission unavailable."; self.refresh() }
+                return
+            }
             DispatchQueue.main.async {
                 guard !self.suspended, requestGeneration == self.generation,
-                      reading.fresh(at: Date()), let current = self.latestReadings[reading.id], current.fresh(at: Date()) else { return }
+                      reading.fresh(at: Date()), let current = self.latestReadings[reading.id], current.fresh(at: Date()) else {
+                    self.notificationFeedback = "Automatic alert canceled: sleep, disconnect or stale observation."; self.refresh(); return
+                }
                 let stillValid = full ? (current.percent == 100 && current.fullChargeEvidence) : current.active
-                guard stillValid else { return }
+                guard stillValid else { self.notificationFeedback = "Automatic alert canceled: current charging evidence changed."; self.refresh(); return }
                 self.center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil)) { error in
-                    if error != nil { DispatchQueue.main.async { self.notificationStatus = "Notification submission failed; check notification settings." } }
+                    DispatchQueue.main.async {
+                        self.notificationFeedback = error == nil ? "Automatic notification submitted to macOS." : "Automatic notification submission failed; check notification settings."
+                        self.refresh()
+                    }
                 }
             }
         }
@@ -225,7 +234,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         submitNotification(content, reading: r, identifier: "\(r.id)-\(threshold)", full: threshold == 100)
     }
     func makeWindow() {
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 440), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 500), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Magic Charger"; window.isReleasedWhenClosed = false; window.center()
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 16; stack.translatesAutoresizingMaskIntoConstraints = false
         let title = NSTextField(labelWithString: "Magic Charger"); title.font = .boldSystemFont(ofSize: 23)
