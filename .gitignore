@@ -1,0 +1,7 @@
+.build/
+build/
+.DS_Store
+
+# Local agent context and hardware observations
+/AGENTS.md
+/agent-docs/
