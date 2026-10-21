@@ -18,7 +18,7 @@ A supported device's address, when available, is read in memory to derive an ins
 
 ## Alert sessions
 
-Alerts use actual threshold crossings from a fresh observed baseline, at most once per threshold per device session. Initial readings already above a threshold do not trigger historical alerts. Explicit idle ends a session; unknown states, disconnects, sleep and restart preserve deduplication conservatively. A persisted five-minute cooldown protects against state flapping. History is bounded to 30 days. An entire disconnect/charge/disconnect cycle while the app is absent cannot be reconstructed reliably from a single later reading.
+Alerts use actual threshold crossings from a fresh observed baseline, at most once per threshold per device session. Initial readings or observations after a gap of 90 seconds already above a threshold do not trigger historical alerts. Explicit idle ends a session; unknown states, disconnects, sleep and restart preserve deduplication conservatively. A persisted five-minute cooldown protects against state flapping. History is bounded to 30 days. An entire disconnect/charge/disconnect cycle while the app is absent cannot be reconstructed reliably from a single later reading.
 
 Threshold observations are consumed even when notification permission is denied, preventing historical alert replay if permission is later enabled. macOS delivery remains subject to user authorization, Focus and notification settings. Delivery errors appear in diagnostics. Notifications are advisory: no precise time-to-80 or guaranteed battery-health improvement is claimed.
 

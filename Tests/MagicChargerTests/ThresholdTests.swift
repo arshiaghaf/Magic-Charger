@@ -33,6 +33,12 @@ final class ThresholdTests: XCTestCase {
         XCTAssertEqual(t.consume(reading(80, at: now.addingTimeInterval(100)), now: now), [])
         XCTAssertEqual(t.consume(reading(80), now: now), [80])
     }
+    func testLongUnknownGapDoesNotReplayHistoricalCrossing() {
+        var t = Thresholds(); _ = t.consume(reading(77), now: now)
+        let later = now.addingTimeInterval(120)
+        XCTAssertEqual(t.consume(reading(81, at: later), now: later), [])
+        XCTAssertEqual(t.consume(reading(82, at: later), now: later), [])
+    }
     func testPrivateIdentitySurvivesReconnectWithoutModelMerging() {
         let key = Data(repeating: 1, count: 32)
         let a = DeviceIdentity.stable(address: "00:11:22:33:44:55", productID: 100, key: key)

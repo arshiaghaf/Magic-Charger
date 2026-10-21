@@ -35,7 +35,7 @@ struct Thresholds {
         var s = sessions[r.id] ?? Session(lastSeen: r.sampled)
         if s.ended { s.sent = []; s.lastPercent = nil; s.ended = false }
         // Establish a baseline on first observation, never send historical alerts.
-        guard let previous = s.lastPercent else {
+        guard let previous = s.lastPercent, r.sampled.timeIntervalSince(s.lastSeen) < 90 else {
             s.sent.formUnion([78, 80].filter { percent >= $0 })
             s.lastSeen = r.sampled; s.lastPercent = percent; sessions[r.id] = s
             return []
