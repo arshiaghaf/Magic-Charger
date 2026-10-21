@@ -1,6 +1,6 @@
 # Magic Charger
 
-A lightweight native macOS accessory battery notifier built with Swift, AppKit, IOKit and UserNotifications. No third-party dependencies. Requires macOS 14 or later.
+An early native macOS accessory charging-notifier preview built with Swift, AppKit, IOKit and UserNotifications. No third-party dependencies. The app builds for macOS 14 or later; currently validated raw-flags profiles are limited to the model/OS combinations below. This is not a production release.
 
 ## Local preview
 
@@ -21,6 +21,10 @@ A supported device's address, when available, is read in memory to derive an ins
 Alerts use actual threshold crossings from a fresh observed baseline, at most once per threshold per device session. Initial readings or observations after a gap of 90 seconds already above a threshold do not trigger historical alerts. Explicit idle ends a session; unknown states, disconnects, sleep and restart preserve deduplication conservatively. A persisted five-minute cooldown protects against state flapping. History is bounded to 30 days. An entire disconnect/charge/disconnect cycle while the app is absent cannot be reconstructed reliably from a single later reading.
 
 Threshold observations are consumed even when notification permission is denied, preventing historical alert replay if permission is later enabled. macOS delivery remains subject to user authorization, Focus and notification settings. Delivery errors appear in diagnostics. Notifications are advisory: no precise time-to-80 or guaranteed battery-health improvement is claimed.
+
+## Validation status
+
+The current profiles have separately observed cable plug/unplug flag transitions. Automatic menu-bar appearance/disappearance has user-confirmed evidence in the mouse profile context. Deterministic tests cover both profiles, full/unknown/conflicting states, threshold crossings and notification deduplication. Live keyboard charging UI, full-but-connected behavior, sleep/wake/reconnect behavior and real notification permission/banner delivery still need separate verification. A test-alert control is available; successful submission is not proof of delivery. No release binary is supplied.
 
 ## Hardware validation
 
