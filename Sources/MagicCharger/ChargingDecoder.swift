@@ -8,7 +8,14 @@ struct ChargingDecoder {
         if let a = batteryCharging, let b = isCharging, a != b { return .unknown }
         let explicit = (batteryCharging ?? isCharging).map { $0 ? Charging.charging : .idle }
         var indication: Charging = .unknown
-        if vendor == 76, product == 803, transport == "Bluetooth", os.majorVersion == 27, os.minorVersion == 2 {
+        // Each model was validated separately; do not extend this list by family name.
+        let validatedProduct: Bool
+        switch product {
+        case 803: validatedProduct = true // Magic Mouse profile
+        case 801: validatedProduct = true // Magic Keyboard profile
+        default: validatedProduct = false
+        }
+        if vendor == 76, validatedProduct, transport == "Bluetooth", os.majorVersion == 27, os.minorVersion == 2 {
             switch flags {
             case 4: indication = .idle
             case 3:

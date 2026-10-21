@@ -9,15 +9,15 @@ final class ChargingDecoderTests: XCTestCase {
                                percent: percent, flags: flags, batteryCharging: a, isCharging: b)
     }
     func testScopedCableTransitionAndFullUncertainty() {
-        XCTAssertEqual(decode(4), .idle)
-        XCTAssertEqual(decode(3), .charging)
-        XCTAssertEqual(decode(4), .idle)
-        for p in [nil, 100, 101, -1] as [Int?] { XCTAssertEqual(decode(3, percent: p), .unknown) }
-        for flag in [nil, 0, 1, 2, 5, 255] as [Int?] { XCTAssertEqual(decode(flag), .unknown) }
+        for product in [803, 801] {
+            XCTAssertEqual([4, 3, 4].map { decode($0, product: product) }, [.idle, .charging, .idle])
+            for p in [nil, 100, 101, -1] as [Int?] { XCTAssertEqual(decode(3, percent: p, product: product), .unknown) }
+            for flag in [nil, 0, 1, 2, 5, 255] as [Int?] { XCTAssertEqual(decode(flag, product: product), .unknown) }
+        }
     }
     func testUnvalidatedProfilesAndContradictionsStayUnknown() {
-        XCTAssertEqual(decode(3, product: 801), .unknown)
-        XCTAssertEqual(decode(4, product: 801), .unknown)
+        XCTAssertEqual(decode(3, product: 999), .unknown)
+        XCTAssertEqual(decode(4, product: 999), .unknown)
         XCTAssertEqual(decode(3, vendor: 1452), .unknown)
         XCTAssertEqual(decode(3, transport: "USB"), .unknown)
         XCTAssertEqual(decode(3, system: .init(majorVersion: 27, minorVersion: 1, patchVersion: 0)), .unknown)

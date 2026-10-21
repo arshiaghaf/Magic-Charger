@@ -171,7 +171,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 16; stack.translatesAutoresizingMaskIntoConstraints = false
         let title = NSTextField(labelWithString: "Magic Charger"); title.font = .boldSystemFont(ofSize: 23)
         label = NSTextField(wrappingLabelWithString: ""); label.font = .systemFont(ofSize: 12)
-        let note = NSTextField(wrappingLabelWithString: "Menu-bar items require recognized charging evidence. The validated mouse profile uses a charging indication below full; other raw flags remain unknown. Relaunch this app to open these controls. Alerts at 78% and 80%; no automatic power cutoff.")
+        let note = NSTextField(wrappingLabelWithString: "Menu-bar items require recognized charging evidence. Validated accessory profiles use a charging indication below full; other raw flags remain unknown. Relaunch this app to open these controls. Alerts at 78% and 80%; no automatic power cutoff.")
         let permission = NSButton(title: "Enable Notifications…", target: self, action: #selector(permissions))
         let quit = NSButton(title: "Quit Magic Charger", target: self, action: #selector(quit))
         [title, label, note, permission, quit].forEach(stack.addArrangedSubview)
