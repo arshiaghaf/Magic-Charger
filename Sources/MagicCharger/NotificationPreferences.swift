@@ -37,6 +37,7 @@ struct NotificationPreferences: Equatable {
 struct AlertSettings {
     private(set) var preferences: NotificationPreferences
     private var revisions: [AlertKind: UInt64] = [:]
+    init(preferences: NotificationPreferences) { self.preferences = preferences }
     func token(_ kind: AlertKind) -> UInt64 { revisions[kind] ?? 0 }
     func canSubmit(_ kind: AlertKind, token: UInt64) -> Bool { preferences.allows(kind) && self.token(kind) == token }
     mutating func update(_ preferences: NotificationPreferences) {
