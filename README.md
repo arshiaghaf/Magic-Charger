@@ -24,7 +24,7 @@ Threshold observations are consumed even when notification permission is denied,
 
 ## Validation status
 
-The current profiles have separately observed cable plug/unplug flag transitions. Automatic menu-bar appearance/disappearance has user-confirmed evidence in the mouse profile context. Deterministic tests cover both profiles, full/unknown/conflicting states, threshold crossings and notification deduplication. Live keyboard charging UI, full-but-connected behavior, sleep/wake/reconnect behavior and real notification permission/banner delivery still need separate verification. A test-alert control is available; successful submission is not proof of delivery. No release binary is supplied.
+The current profiles have separately observed cable plug/unplug flag transitions. Automatic menu-bar appearance/disappearance has user-confirmed evidence in the mouse profile context. Deterministic tests cover both profiles, full/unknown/conflicting states, threshold crossings and notification deduplication. A user-triggered native test notification has user-confirmed delivery. Actual 78%/80% hardware-triggered notification delivery, live keyboard charging UI, full-but-connected behavior and sleep/wake/reconnect behavior still need separate verification. A test-alert control is available; submission alone is not proof of delivery. No release binary is supplied.
 
 ## Hardware validation
 
