@@ -52,6 +52,23 @@ final class ChargingStartTests: XCTestCase {
         XCTAssertEqual(thresholds.consume(r(.charging, percent: 81), now: now), [])
         XCTAssertEqual(thresholds.sessions["mouse"]?.sent, Set([78,80]))
     }
+    func testSimultaneousDevicesKeepIndependentLevelsStartsAndRemoval() {
+        let now = Date()
+        func device(_ id: String, _ percent: Int, _ state: Charging) -> Reading {
+            Reading(id: id, name: id == "keyboard" ? "Magic Keyboard" : "Magic Mouse",
+                    symbol: id == "keyboard" ? "keyboard" : "computermouse", percent: percent,
+                    state: state, sampled: now, evidence: "SIMULATED")
+        }
+        var tracker = ChargingStarts()
+        _ = tracker.consume([device("keyboard", 41, .idle), device("mouse", 67, .idle)], now: now)
+        let both = [device("keyboard", 41, .charging), device("mouse", 67, .charging)]
+        let starts = tracker.consume(both, now: now)
+        XCTAssertEqual(Dictionary(uniqueKeysWithValues: starts.map { ($0.id, $0.percent) }), ["keyboard":41,"mouse":67])
+        XCTAssertEqual(Set(reconciled(both).filter { $0.active }.map { $0.symbol }), ["keyboard","computermouse"])
+        let unpluggedMouse = [device("keyboard", 41, .charging), device("mouse", 67, .idle)]
+        XCTAssertTrue(tracker.consume(unpluggedMouse, now: now).isEmpty)
+        XCTAssertEqual(reconciled(unpluggedMouse).filter { $0.active }.map { $0.id }, ["keyboard"])
+    }
     func testMissingPercentageConflictAndIndependentDevices() {
         var tracker = ChargingStarts()
         _ = tracker.consume([r(.idle), r(.idle, id: "keyboard")], now: now)

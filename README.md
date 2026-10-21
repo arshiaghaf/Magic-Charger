@@ -6,7 +6,13 @@ An early native macOS accessory charging-notifier preview built with Swift, AppK
 
 Run `sh build-app.sh`, then open `build/Magic Charger.app`. The script uses the active Xcode selection; an explicit `DEVELOPER_DIR` can select another installed Xcode without changing system settings. Run `swift test` for deterministic simulated checks.
 
-Launching or reopening the app opens diagnostics, notification permission and Quit controls. Closing the window keeps monitoring. The app has no permanent Dock icon. It requests notification permission only when Enable Notifications is clicked. After granting permission, click Send Test Notification for one clearly labeled native test alert; this does not change live readings or threshold/session state. Submission to macOS does not guarantee a visible banner, which depends on user settings and Focus. No login item, persistent background job, external publication or automatic power cutoff is installed.
+Launching or reopening the app opens native accessory cards, menu-bar preferences, notification controls and Quit. Technical Details opens a separate diagnostic sheet. Closing the window keeps monitoring. The app has no permanent Dock icon. It requests notification permission only when Enable Notifications is clicked. After granting permission, click Send Test for one clearly labeled native test alert; this does not change live readings or threshold/session state. Submission to macOS does not guarantee a visible banner, which depends on user settings and Focus. No login item, persistent background job, external publication or automatic power cutoff is installed.
+
+## Menu-bar appearance
+
+Each charging accessory has its own device glyph, exact percentage and vertical battery-level bar. Menu Bar controls independently show or hide those three elements and save the choices locally. All three default on; at least one must remain visible. No percentage is averaged across devices. VoiceOver identifies the accessory and actual level even when its device glyph is hidden.
+
+The bar rounds down to the nearest 10% step (99% is drawn as 90%; only actual 100% can draw full). Unknown level uses a dash, not an empty 0% reading. Native monochrome template artwork adapts to light, dark and highlighted menu bars. Images are regenerated only when their device/bucket/display options change; no animation timer is added. The entire status item still disappears when its device is no longer verified charging.
 
 ## Charging evidence
 

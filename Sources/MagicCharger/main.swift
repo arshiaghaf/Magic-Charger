@@ -46,6 +46,8 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     var interests: [UInt64: io_object_t] = [:]
     var registryDirty = true
     var items: [String: NSStatusItem] = [:]
+    var itemImageSignatures: [String: String] = [:]
+    var displayPreferences = MenuBarPreferences.load(.standard)
     func observeRegistry() {
         if port == nil {
             port = IONotificationPortCreate(kIOMainPortDefault)
@@ -88,7 +90,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         for id in Array(interests.keys) where !present.contains(id) { IOObjectRelease(interests.removeValue(forKey: id)!) }
     }
     var window: NSWindow!
-    var label: NSTextField!
+    var controls: ControlsWindow!
     var timer: Timer?
     var engine = Thresholds()
     var starts = ChargingStarts()
@@ -128,7 +130,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in self?.refresh() }
         timer?.tolerance = interval == 10 ? 1 : 5
     }
-    func clearItems() { items.values.forEach { NSStatusBar.system.removeStatusItem($0) }; items.removeAll() }
+    func clearItems() { items.values.forEach { NSStatusBar.system.removeStatusItem($0) }; items.removeAll(); itemImageSignatures.removeAll() }
     func refresh() {
         guard !suspended else { return }
         guard !refreshing else { refreshPending = true; return }
@@ -150,13 +152,15 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         for started in starts.consume(readings) { notifyStarted(started) }
         // Reuse items so an open menu is not destroyed on each telemetry update.
         let activeIDs = Set(readings.filter { $0.active }.map { $0.id })
-        for id in Array(items.keys) where !activeIDs.contains(id) { NSStatusBar.system.removeStatusItem(items.removeValue(forKey: id)!) }
+        for id in Array(items.keys) where !activeIDs.contains(id) {
+            NSStatusBar.system.removeStatusItem(items.removeValue(forKey: id)!); itemImageSignatures.removeValue(forKey: id)
+        }
         schedulePolling(activeIDs.isEmpty ? 30 : 10)
         var diagnostic = readings.isEmpty ? "No supported accessories detected.\nMonitoring every 30 seconds." : readings.map { "\($0.name): \($0.percent.map { "\($0)%" } ?? "unknown") — \($0.state.rawValue)\n\($0.evidence)" }.joined(separator: "\n\n")
         diagnostic += "\n\nMenu-bar items: \(activeIDs.count); polling: \(Int(pollInterval)) seconds.\n" + notificationStatus
         if !notificationFeedback.isEmpty { diagnostic += "\n" + notificationFeedback }
         diagnostic += "\n" + starts.lastDecisions.joined(separator: "\n")
-        if label.stringValue != diagnostic { label.stringValue = diagnostic }
+        controls.update(readings: readings, notificationStatus: notificationStatus, feedback: notificationFeedback, diagnostic: diagnostic)
         for r in readings {
             let thresholds = engine.consume(r)
             if !thresholds.isEmpty { notify(r, threshold: thresholds.max()!) }
@@ -166,14 +170,24 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
             else {
                 item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
                 items[r.id] = item
-                item.button?.image = NSImage(systemSymbolName: r.symbol, accessibilityDescription: r.name)
                 let menu = NSMenu(); menu.addItem(withTitle: "\(r.name) — Charging", action: nil, keyEquivalent: "")
                 menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",").target = self
                 menu.addItem(withTitle: "Quit Magic Charger", action: #selector(quit), keyEquivalent: "q").target = self
                 item.menu = menu
             }
-            let title = " \(r.percent.map { "\($0)%" } ?? "?") ⚡"
+            let title = displayPreferences.percentage ? " \(r.percent.map { "\($0)%" } ?? "?")" : ""
             if item.button?.title != title { item.button?.title = title }
+            let imageSignature = "\(r.symbol):\(MenuBarPreferences.level(r.percent) ?? -1):\(displayPreferences.deviceGlyph):\(displayPreferences.batteryBar)"
+            if itemImageSignatures[r.id] != imageSignature {
+                item.button?.image = (displayPreferences.deviceGlyph || displayPreferences.batteryBar)
+                    ? MenuBarIcon.image(symbol: r.symbol, percent: r.percent, deviceGlyph: displayPreferences.deviceGlyph, batteryBar: displayPreferences.batteryBar) : nil
+                itemImageSignatures[r.id] = imageSignature
+            }
+            let description = "\(r.name), charging, \(r.percent.map { "\($0) percent" } ?? "battery level unknown")"
+            if item.button?.toolTip != description {
+                item.button?.setAccessibilityLabel(description)
+                item.button?.toolTip = description
+            }
         }
         let signature = engine.sessions.sorted { $0.key < $1.key }.map {
             "\($0.key):\($0.value.sent.sorted()):\($0.value.lastPercent ?? -1):\($0.value.ended)"
@@ -215,7 +229,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         guard let percent = r.percent, (0...100).contains(percent) else { return }
         let content = UNMutableNotificationContent()
         content.title = "\(r.name) started charging"
-        content.body = "Currently @ \(percent)%"
+        content.body = "Currently at \(percent)%"
         content.sound = .default
         submitNotification(content, reading: r, identifier: "started-\(r.id)-\(UUID().uuidString)")
     }
@@ -234,18 +248,12 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         submitNotification(content, reading: r, identifier: "\(r.id)-\(threshold)", full: threshold == 100)
     }
     func makeWindow() {
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 500), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Magic Charger"; window.isReleasedWhenClosed = false; window.center()
-        let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 16; stack.translatesAutoresizingMaskIntoConstraints = false
-        let title = NSTextField(labelWithString: "Magic Charger"); title.font = .boldSystemFont(ofSize: 23)
-        label = NSTextField(wrappingLabelWithString: ""); label.font = .systemFont(ofSize: 12)
-        let note = NSTextField(wrappingLabelWithString: "Menu-bar items require recognized charging evidence. Validated accessory profiles use a charging indication below full; other raw flags remain unknown. Relaunch this app to open these controls. Charging-start alerts show the current percentage; target alerts at 78% and 80%. No automatic power cutoff.")
-        let permission = NSButton(title: "Enable Notifications…", target: self, action: #selector(permissions))
-        let test = NSButton(title: "Send Test Notification", target: self, action: #selector(testNotification))
-        let quit = NSButton(title: "Quit Magic Charger", target: self, action: #selector(quit))
-        [title, label, note, permission, test, quit].forEach(stack.addArrangedSubview)
-        window.contentView!.addSubview(stack)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 24)])
+        controls = ControlsWindow(target: self, enable: #selector(permissions), test: #selector(testNotification), quit: #selector(quit), preferences: displayPreferences) { [weak self] preferences in
+            self?.displayPreferences = preferences
+            preferences.save(.standard)
+            self?.refresh()
+        }
+        window = controls.window
     }
     func updateNotificationStatus() {
         center.getNotificationSettings { settings in
