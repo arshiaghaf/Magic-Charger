@@ -1,63 +1,42 @@
-// Original Magic Charger artwork. Rendered with system frameworks; no third-party assets.
+// Render the approved master image into standard macOS icon representations.
+// The composition is unchanged; only scaling and a transparent tile mask are applied.
 import CoreGraphics
 import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-guard CommandLine.arguments.count == 2 else {
-    fatalError("Usage: swift scripts/generate-icon.swift output.icns")
+guard CommandLine.arguments.count == 3 else {
+    fatalError("Usage: swift scripts/generate-icon.swift master.png output.icns")
 }
 
-let output = URL(fileURLWithPath: CommandLine.arguments[1])
+let masterURL = URL(fileURLWithPath: CommandLine.arguments[1])
+let outputURL = URL(fileURLWithPath: CommandLine.arguments[2])
+guard let source = CGImageSourceCreateWithURL(masterURL as CFURL, nil),
+      let master = CGImageSourceCreateImageAtIndex(source, 0, nil),
+      master.width == master.height, master.width >= 1024 else {
+    fatalError("Master must be a square image at least 1024 pixels wide")
+}
+
 let iconset = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".iconset")
 try FileManager.default.createDirectory(at: iconset, withIntermediateDirectories: true)
 defer { try? FileManager.default.removeItem(at: iconset) }
 
-func color(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat) -> CGColor {
-    CGColor(red: red, green: green, blue: blue, alpha: 1)
-}
-
 func render(_ pixels: Int, to url: URL) throws {
     let space = CGColorSpaceCreateDeviceRGB()
-    guard let context = CGContext(
-        data: nil, width: pixels, height: pixels, bitsPerComponent: 8,
-        bytesPerRow: 0, space: space,
-        bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-    ) else { fatalError("Cannot create icon bitmap") }
+    guard let context = CGContext(data: nil, width: pixels, height: pixels,
+                                  bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+        fatalError("Cannot create icon bitmap")
+    }
 
-    let scale = CGFloat(pixels)
-    context.scaleBy(x: scale, y: scale)
-    let tile = CGPath(roundedRect: CGRect(x: 0.035, y: 0.035, width: 0.93, height: 0.93),
-                      cornerWidth: 0.215, cornerHeight: 0.215, transform: nil)
-    context.addPath(tile)
+    let side = CGFloat(pixels)
+    let inset = side * 0.045
+    let tile = CGRect(x: inset, y: inset, width: side - 2 * inset, height: side - 2 * inset)
+    let radius = tile.width * 0.22
+    context.addPath(CGPath(roundedRect: tile, cornerWidth: radius, cornerHeight: radius, transform: nil))
     context.clip()
-    let gradient = CGGradient(
-        colorsSpace: space,
-        colors: [color(0.065, 0.20, 0.27), color(0.035, 0.085, 0.17)] as CFArray,
-        locations: [0, 1]
-    )!
-    context.drawLinearGradient(gradient, start: CGPoint(x: 0, y: 1),
-                               end: CGPoint(x: 1, y: 0), options: [])
-
-    // A partial charging ring leaves room for the bolt and stays legible at menu sizes.
-    context.setStrokeColor(color(0.22, 0.79, 0.68))
-    context.setLineWidth(0.075)
-    context.setLineCap(.round)
-    context.addArc(center: CGPoint(x: 0.5, y: 0.5), radius: 0.303,
-                   startAngle: .pi * 0.12, endAngle: .pi * 1.37, clockwise: false)
-    context.strokePath()
-
-    let bolt = CGMutablePath()
-    bolt.move(to: CGPoint(x: 0.555, y: 0.83))
-    bolt.addLine(to: CGPoint(x: 0.30, y: 0.475))
-    bolt.addLine(to: CGPoint(x: 0.475, y: 0.475))
-    bolt.addLine(to: CGPoint(x: 0.418, y: 0.17))
-    bolt.addLine(to: CGPoint(x: 0.70, y: 0.555))
-    bolt.addLine(to: CGPoint(x: 0.523, y: 0.555))
-    bolt.closeSubpath()
-    context.addPath(bolt)
-    context.setFillColor(color(0.92, 1.0, 0.93))
-    context.fillPath()
+    context.interpolationQuality = .high
+    context.draw(master, in: tile)
 
     guard let image = context.makeImage(),
           let destination = CGImageDestinationCreateWithURL(url as CFURL, UTType.png.identifier as CFString, 1, nil) else {
@@ -74,8 +53,6 @@ for points in [16, 32, 128, 256, 512] {
     }
 }
 
-// The modern ICNS container embeds PNGs. Writing it directly also makes the
-// generated asset independent of iconutil behavior across Xcode releases.
 func bigEndian(_ number: UInt32) -> Data {
     withUnsafeBytes(of: number.bigEndian) { Data($0) }
 }
@@ -97,4 +74,4 @@ for (kind, name) in representations {
 var icns = Data("icns".utf8)
 icns.append(bigEndian(UInt32(body.count + 8)))
 icns.append(body)
-try icns.write(to: output, options: .atomic)
+try icns.write(to: outputURL, options: .atomic)
