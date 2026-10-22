@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
+if [ -z "${DEVELOPER_DIR:-}" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
+    export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+fi
 
 APP="build/Magic Charger.app"
 if [ ! -d "$APP" ]; then
@@ -52,8 +55,8 @@ trap 'exit 1' HUP INT TERM
 ditto "$APP" "$STAGING/Magic Charger.app"
 ln -s /Applications "$STAGING/Applications"
 cp assets/MagicCharger.icns "$STAGING/.VolumeIcon.icns"
-if DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcrun --find SetFile >/dev/null 2>&1; then
-    DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}" xcrun SetFile -a C "$STAGING"
+if xcrun --find SetFile >/dev/null 2>&1; then
+    xcrun SetFile -a C "$STAGING"
 fi
 
 DMG="Magic-Charger-$VERSION.dmg"
@@ -61,8 +64,6 @@ if [ -e "dist/$DMG" ]; then
     echo "dist/$DMG already exists; remove it explicitly before rebuilding" >&2
     exit 2
 fi
-DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-export DEVELOPER_DIR
 swift build --package-path scripts/dmg-layout --configuration release --scratch-path "$WORK/swift-build" >&2
 LAYOUT_BIN="$(swift build --package-path scripts/dmg-layout --configuration release \
     --scratch-path "$WORK/swift-build" --show-bin-path)/DmgLayout"

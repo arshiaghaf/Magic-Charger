@@ -10,8 +10,8 @@ sh build-app.sh
 codesign --verify --strict "build/Magic Charger.app"
 ```
 
-Set `DEVELOPER_DIR` locally if needed; do not change global developer selection for the project. No third-party packages are required. Add focused tests for meaningful behavior changes. Simulated fixtures must never enter live UI or notifications.
+Set `DEVELOPER_DIR` locally if needed; do not change global developer selection for the project. The app has no third-party runtime dependencies; DMG layout preparation fetches a pinned MIT-licensed DSStore package used only by build tooling. Add focused tests for meaningful behavior changes. Simulated fixtures must never enter live UI or notifications.
 
-Use short standard commit subjects such as `fix: preserve charging continuity`. Open a draft PR while work is in progress, with **Summary** and **Validation** sections. Record actual commands/results and distinguish deterministic, CI and hardware verification. Mark ready once the change is ready. Do not claim broader hardware support from a single model.
+Use short standard commit subjects such as `fix: preserve charging continuity`. Open a draft PR while work is in progress, with **Summary** and **Validation** sections. Record actual commands/results and distinguish deterministic, CI and hardware verification. Mark ready once the change is ready. Before merging, require an actual Codex thumbs-up for the final head, passing checks and verified resolution of review concerns. Green CI, resolved threads or a thumbs-up on an earlier head are not substitutes; changes after approval require approval of the new head. Do not claim broader hardware support from a single model.
 
 Contributions are licensed under MIT. Do not copy incompatible third-party implementation or distribute Apple SF Symbols as MIT assets. Keep build outputs and private local agent notes untracked.
