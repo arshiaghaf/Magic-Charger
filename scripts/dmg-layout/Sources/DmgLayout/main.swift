@@ -1,3 +1,4 @@
+import AppKit
 import CoreGraphics
 import DSStore
 import Foundation
@@ -49,7 +50,12 @@ func makeBackground(in folder: URL) throws {
           let destination = CGImageDestinationCreateWithURL(
             output as CFURL, UTType.png.identifier as CFString, 1, nil
           ) else { throw NSError(domain: "DmgLayout", code: 2) }
-    CGImageDestinationAddImage(destination, image, nil)
+    // Finder sizes the backdrop in points. At 144 DPI this 2x bitmap is 680×400 pt.
+    let properties: [CFString: Any] = [
+        kCGImagePropertyDPIWidth: 144,
+        kCGImagePropertyDPIHeight: 144
+    ]
+    CGImageDestinationAddImage(destination, image, properties as CFDictionary)
     guard CGImageDestinationFinalize(destination) else {
         throw NSError(domain: "DmgLayout", code: 3)
     }
@@ -78,6 +84,11 @@ func applyLayout(to volume: URL) throws {
 }
 
 func verifyLayout(in volume: URL) throws {
+    let background = volume.appending(path: ".background/installer.png")
+    guard let image = NSImage(contentsOf: background),
+          image.size.width == CGFloat(width), image.size.height == CGFloat(height) else {
+        throw NSError(domain: "DmgLayout", code: 6)
+    }
     let store = try DSStore.read(from: volume.appending(path: ".DS_Store"))
     let app = store.iconPosition(for: "Magic Charger.app")
     let applications = store.iconPosition(for: "Applications")
@@ -90,8 +101,7 @@ func verifyLayout(in volume: URL) throws {
           window?.windowBounds == "{{120, 120}, {680, 400}}",
           window?.showToolbar == false, window?.showSidebar == false,
           view?.iconSize == 112, view?.backgroundType == 2,
-          !(view?.backgroundImageAlias?.isEmpty ?? true),
-          FileManager.default.fileExists(atPath: volume.appending(path: ".background/installer.png").path)
+          !(view?.backgroundImageAlias?.isEmpty ?? true)
     else { throw NSError(domain: "DmgLayout", code: 5) }
 }
 
