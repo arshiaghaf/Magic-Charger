@@ -254,23 +254,18 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     }
     func notifyStarted(_ r: Reading) {
         guard let percent = r.percent, (0...100).contains(percent) else { return }
+        let copy = NotificationCopy.started(name: r.name, percent: percent)
         let content = UNMutableNotificationContent()
-        content.title = "\(r.name) started charging"
-        content.body = "Currently at \(percent)%"
+        content.title = copy.title
+        content.body = copy.body
         content.sound = .default
         submitNotification(content, reading: r, identifier: "started-\(r.id)-\(UUID().uuidString)", kind: .started)
     }
     func notify(_ r: Reading, threshold: Int) {
+        let copy = NotificationCopy.milestone(name: r.name, percent: r.percent, threshold: threshold)
         let content = UNMutableNotificationContent()
-        if threshold == 100 {
-            content.title = "\(r.name) is at 100%"
-            content.body = r.symbol == "keyboard"
-                ? "No need to unplug right away. You can keep using your keyboard while it’s connected."
-                : "No need to unplug right away. Disconnect it whenever you’re ready to use it."
-        } else {
-            content.title = "\(r.name) reached \(threshold)%"
-            content.body = "Battery is currently \(r.percent ?? threshold)%. You can unplug it when convenient."
-        }
+        content.title = copy.title
+        content.body = copy.body
         content.sound = .default
         submitNotification(content, reading: r, identifier: "milestone-\(threshold)-\(r.id)", kind: .milestone(threshold), full: threshold == 100 || r.fullChargeEvidence)
     }
