@@ -17,6 +17,8 @@ open "build/Magic Charger.app"
 
 The script uses an explicitly supplied `DEVELOPER_DIR`, otherwise `/Applications/Xcode.app` when installed, otherwise the active developer selection. It does not change global tooling. The bundle is locally ad-hoc signed. Use `CONFIGURATION=release sh build-app.sh` for an optimized local build; the default is debug. Run `swift test` with the same compatible developer directory for deterministic checks.
 
+The release-preparation DMG currently contains an ARM64 app only; an Intel or universal distribution has not been verified. Earlier source previews used bundle ID `local.magiccharger.app`; new builds use `co.arshia.magiccharger`. macOS treats the new ID as a separate app, so notification permission must be enabled again and saved menu/alert preferences, the local identity key and notification-session history start fresh. The older preview's data is not imported or removed. Quit the older preview before opening a new build to avoid running both copies at once.
+
 ## Use
 
 Each verified charging accessory gets its own menu-bar item. When none qualifies, the items disappear and lightweight monitoring continues. Reopen the app from Finder or Spotlight for controls and Quit. Closing the controls window keeps monitoring; there is no permanent Dock icon. **Launch at Login** is off until you enable it in General, and macOS manages the login item. Login launches keep the controls closed.
