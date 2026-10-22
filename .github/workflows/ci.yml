@@ -26,4 +26,6 @@ jobs:
         run: |
           codesign --verify --strict "build/Magic Charger.app"
           plutil -lint "build/Magic Charger.app/Contents/Info.plist"
+          test "$(plutil -extract LSMinimumSystemVersion raw -o - 'build/Magic Charger.app/Contents/Info.plist')" = '14.0'
+          test "$(plutil -extract LSUIElement raw -o - 'build/Magic Charger.app/Contents/Info.plist')" = 'true'
           cmp LICENSE "build/Magic Charger.app/Contents/Resources/LICENSE"
