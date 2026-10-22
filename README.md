@@ -2,7 +2,7 @@
 
 A native macOS menu-bar utility for Magic Keyboard and Magic Mouse charging notifications. Built with Swift, AppKit, IOKit and UserNotifications, with no third-party dependencies.
 
-**Early source preview.** Builds for macOS 14 or later; currently validated raw-flags profiles are limited to the model/OS combinations below. No downloadable release, Developer ID signature or notarization is provided.
+**Early source preview.** The deployment target is macOS 14 or later. Charging evidence from device flags has only been checked for the specific model/OS combinations below. There is no downloadable release, Developer ID signature or notarization.
 
 ## Build and Run
 
@@ -17,7 +17,7 @@ open "build/Magic Charger.app"
 
 The script uses an explicitly supplied `DEVELOPER_DIR`, otherwise `/Applications/Xcode.app` when installed, otherwise the active developer selection. It does not change global tooling. The bundle is locally ad-hoc signed. Use `CONFIGURATION=release sh build-app.sh` for an optimized local build; the default is debug. Run `swift test` with the same compatible developer directory for deterministic checks.
 
-## Magic Charger
+## Use
 
 Each verified charging accessory gets its own menu-bar item. When none qualifies, the items disappear and lightweight monitoring continues. Reopen the app from Finder or Spotlight for controls and Quit. Closing the controls window keeps monitoring; no permanent Dock icon or login item is installed.
 
@@ -34,7 +34,14 @@ Choose **Enable Notifications** and answer the native macOS prompt to receive al
 
 The Magic Mouse glyph is Apple's runtime `magicmouse` SF Symbol representing the accessory. Apple symbol artwork is not bundled or licensed under this project's MIT license.
 
-## Limitations
+## Compatibility and limitations
+
+| Accessory profile | Evidence checked | Scope |
+| --- | --- | --- |
+| Magic Mouse, vendor 76/product 803, Bluetooth | Cable plug/unplug changes; charging display and automatic menu appearance/removal confirmed by a user | macOS 27.2.x |
+| Magic Keyboard, vendor 76/product 801, Bluetooth | Cable plug/unplug flag changes confirmed by a user | macOS 27.2.x; live charging UI still needs validation |
+
+The macOS 14 deployment target means the app can be built for that version; it does not establish charging detection on macOS 14. The table describes narrow observations, not a universal hardware specification or a promise that every accessory revision behaves the same way.
 
 - Raw-flags profiles currently cover vendor 76/product 803 Magic Mouse and vendor 76/product 801 Magic Keyboard, reporting Bluetooth on macOS 27.2.x. Flag 3 below 100% is charging indication; flag 4 is not charging. Other values and unvalidated model/OS combinations stay unknown. These are observed compatibility profiles, not a universal documented specification.
 - Recognized explicit Boolean charging properties can provide evidence. Conflicts, missing or stale observations remain unknown. USB presence alone is insufficient.
@@ -45,6 +52,8 @@ The Magic Mouse glyph is Apple's runtime `magicmouse` SF Symbol representing the
 
 See [Validation](docs/VALIDATION.md) for actual evidence and pending hardware checks. App Store sandbox compatibility, signed distribution and broader device/OS support remain unverified.
 
+To report a device result, use the [hardware validation checklist](docs/VALIDATION.md#hardware-validation-checklist) and a [bug report](https://github.com/arshiaghaf/Magic-Charger/issues/new/choose). Include only generic model and OS information; keep raw identifiers and registry dumps private.
+
 ## Privacy and Security
 
 The app has no network client, analytics, accounts or cloud service. It reads only relevant accessory telemetry and never captures input. A supported accessory address is read transiently to derive an installation-keyed HMAC identity; raw addresses, serials and personalized device names are not stored or logged. Local preferences, the identity key, digests and bounded notification-session history use UserDefaults.
@@ -54,6 +63,8 @@ Read the [privacy details](docs/PRIVACY.md), [support guidance](SUPPORT.md) and 
 ## Contributing
 
 Start with [CONTRIBUTING.md](CONTRIBUTING.md). Keep changes focused, run the local checks and distinguish simulated tests from real hardware evidence. [Architecture](docs/ARCHITECTURE.md) describes the monitoring and notification paths. CI compiles, tests and validates bundle packaging; it cannot validate charging hardware.
+
+See [CHANGELOG.md](CHANGELOG.md) for source-preview changes.
 
 ## License
 

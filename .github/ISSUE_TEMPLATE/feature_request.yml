@@ -1,0 +1,22 @@
+name: Feature request
+description: Propose a focused improvement to the utility.
+title: "feat: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the user need and the current behavior. Magic Charger does not control charging hardware or guarantee battery-health outcomes.
+  - type: textarea
+    id: need
+    attributes:
+      label: User need
+      description: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain a practical result, including any model or macOS assumptions.
+    validations:
+      required: true

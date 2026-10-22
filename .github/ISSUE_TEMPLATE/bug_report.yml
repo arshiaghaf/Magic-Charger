@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible app or charging-detection problem.
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Include only generic device and OS details. Do not attach raw registry dumps, addresses, serials, personalized names or other private data. For hardware checks, see the [validation checklist](https://github.com/arshiaghaf/Magic-Charger/blob/main/docs/VALIDATION.md#hardware-validation-checklist).
+  - type: input
+    id: version
+    attributes:
+      label: App version or commit
+      placeholder: "0.1 source preview or commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: macOS version and generic accessory model
+      placeholder: "macOS version; Magic Mouse or Magic Keyboard"
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: Evidence type
+      options:
+        - Physical device observation
+        - Deterministic test or simulation
+        - Other or uncertain
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps and expected behavior
+      description: Include the starting state, actions and expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include relevant charging state, percentage, alert settings and whether an alert reached Notification Center or appeared as a banner, if applicable.
+    validations:
+      required: true
