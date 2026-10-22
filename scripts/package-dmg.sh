@@ -18,6 +18,11 @@ if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")" != "co
     exit 2
 fi
 
+if [ "$(/usr/libexec/PlistBuddy -c 'Print :MagicChargerBuildConfiguration' "$PLIST" 2>/dev/null || true)" != release ]; then
+    echo "Packaging requires a release bundle; rebuild with CONFIGURATION=release sh build-app.sh" >&2
+    exit 2
+fi
+
 codesign --verify --strict "$APP"
 cmp LICENSE "$APP/Contents/Resources/LICENSE"
 ARCHITECTURES="$(lipo -archs "$APP/Contents/MacOS/MagicCharger")"

@@ -3,6 +3,11 @@ on:
   pull_request:
     paths:
       - .github/workflows/release-prep.yml
+      - Sources/**
+      - Tests/**
+      - Package.swift
+      - Package.resolved
+      - LICENSE
       - build-app.sh
       - VERSION
       - BUILD_NUMBER
@@ -25,6 +30,8 @@ jobs:
         run: CONFIGURATION=release sh build-app.sh
       - name: Prepare disk image and checksum
         run: sh scripts/package-dmg.sh
+      - name: Check packaging regressions
+        run: sh Tests/Packaging/check-artifacts.sh
       - name: Verify release metadata
         run: |
           test "$(lipo -archs 'build/Magic Charger.app/Contents/MacOS/MagicCharger')" = arm64
