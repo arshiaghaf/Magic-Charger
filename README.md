@@ -19,9 +19,11 @@ The script uses an explicitly supplied `DEVELOPER_DIR`, otherwise `/Applications
 
 ## Use
 
-Each verified charging accessory gets its own menu-bar item. When none qualifies, the items disappear and lightweight monitoring continues. Reopen the app from Finder or Spotlight for controls and Quit. Closing the controls window keeps monitoring; no permanent Dock icon or login item is installed.
+Each verified charging accessory gets its own menu-bar item. When none qualifies, the items disappear and lightweight monitoring continues. Reopen the app from Finder or Spotlight for controls and Quit. Closing the controls window keeps monitoring; there is no permanent Dock icon. **Launch at Login** is off until you enable it in General, and macOS manages the login item. Login launches keep the controls closed.
 
 Choose **Enable Notifications** and answer the native macOS prompt to receive alerts. Monitoring remains available if you decline. **Notification Settings** opens System Settings; choose Notifications > Magic Charger to change permission or presentation. **Send Test** submits one clearly labeled test without changing battery or session state. Focus and screen-sharing/mirroring policy may suppress banners even when Notification Center receives an alert.
+
+**View Releases** opens the official GitHub releases page in your browser. It does not check for or install updates automatically.
 
 ## Features
 
