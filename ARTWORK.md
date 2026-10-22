@@ -4,7 +4,7 @@
 
 © 2026 Arshia Ghaf. All rights reserved.
 
-The following project artwork is excluded from the MIT License that covers the source code and documentation:
+The following project artwork is excluded from the MIT License that covers the software and documentation, including compiled and generated forms:
 
 - `assets/MagicCharger-master.png` — the app icon master image.
 - `assets/MagicCharger.icns` — icon representations derived from the master image. Copies of this file in an app bundle or as a DMG volume icon have the same artwork terms.
