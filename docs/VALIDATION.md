@@ -2,7 +2,7 @@
 
 ## Current evidence
 
-This is an early source preview, not a signed consumer release. On macOS 27.2, user-confirmed cable transitions informed separate Magic Mouse and Magic Keyboard flag profiles. The mouse has user-confirmed charging display, automatic menu-bar appearance/removal, and charging-start notification receipt. A user-triggered test notification also has confirmed receipt. Notification Center receipt does not establish desktop banner presentation.
+This is an early source preview, not a signed consumer release. On macOS 27.2, user-confirmed cable transitions informed separate Magic Mouse and Magic Keyboard flag profiles. The decoder applies the recognized 3/4 values for these device and transport profiles across macOS versions; physical evidence remains specific to macOS 27.2, and Apple does not specify future flag semantics here. The mouse has user-confirmed charging display, automatic menu-bar appearance/removal, and charging-start notification receipt. A user-triggered test notification also has confirmed receipt. Notification Center receipt does not establish desktop banner presentation.
 
 Deterministic tests cover decoder boundaries, conflicting observations, stable identity, charging-start continuity, skipped thresholds, full-charge eligibility, alert preferences and menu display preferences. They use synthetic fixtures, not fabricated live readings.
 

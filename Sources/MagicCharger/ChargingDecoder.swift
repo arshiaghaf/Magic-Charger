@@ -1,26 +1,25 @@
 import Foundation
 
 struct ChargingDecoder {
-    // The 3/4 flag transitions were observed for each model on macOS 27.2.
-    // These flags are undocumented, so an OS minor-version change needs its own
-    // cable-transition evidence before the profile can be extended.
-    private static func supportsObservedFlags(vendor: Int, product: Int, transport: String?, os: OperatingSystemVersion) -> Bool {
-        vendor == 76 && (product == 803 || product == 801) && transport == "Bluetooth" &&
-        os.majorVersion == 27 && os.minorVersion == 2
+    // The 3/4 transitions were observed on macOS 27.2 for these two models.
+    // Match the known device, transport and flag values without assuming that
+    // every nonzero flag, other model, or other transport has the same meaning.
+    private static func supportsRecognizedFlags(vendor: Int, product: Int, transport: String?) -> Bool {
+        vendor == 76 && (product == 803 || product == 801) && transport == "Bluetooth"
     }
 
-    static func fullChargeEvidence(vendor: Int, product: Int, transport: String?, os: OperatingSystemVersion,
+    static func fullChargeEvidence(vendor: Int, product: Int, transport: String?, os _: OperatingSystemVersion,
                                    percent: Int?, flags: Int?, batteryCharging: Bool?, isCharging: Bool?) -> Bool {
-        supportsObservedFlags(vendor: vendor, product: product, transport: transport, os: os) &&
+        supportsRecognizedFlags(vendor: vendor, product: product, transport: transport) &&
         percent == 100 && flags == 3 &&
         batteryCharging != false && isCharging != false
     }
-    static func decode(vendor: Int, product: Int, transport: String?, os: OperatingSystemVersion,
+    static func decode(vendor: Int, product: Int, transport: String?, os _: OperatingSystemVersion,
                        percent: Int?, flags: Int?, batteryCharging: Bool?, isCharging: Bool?) -> Charging {
         if let a = batteryCharging, let b = isCharging, a != b { return .unknown }
         let explicit = (batteryCharging ?? isCharging).map { $0 ? Charging.charging : .idle }
         var indication: Charging = .unknown
-        if supportsObservedFlags(vendor: vendor, product: product, transport: transport, os: os) {
+        if supportsRecognizedFlags(vendor: vendor, product: product, transport: transport) {
             switch flags {
             case 4: indication = .idle
             case 3:

@@ -20,22 +20,27 @@ final class ChargingDecoderTests: XCTestCase {
         XCTAssertEqual(decode(4, product: 999), .unknown)
         XCTAssertEqual(decode(3, vendor: 1452), .unknown)
         XCTAssertEqual(decode(3, transport: "USB"), .unknown)
-        XCTAssertEqual(decode(3, system: .init(majorVersion: 27, minorVersion: 1, patchVersion: 0)), .unknown)
-        XCTAssertEqual(decode(3, system: .init(majorVersion: 28, minorVersion: 2, patchVersion: 0)), .unknown)
         XCTAssertEqual(decode(3, a: false), .unknown)
         XCTAssertEqual(decode(4, a: true), .unknown)
         XCTAssertEqual(decode(3, a: true, b: false), .unknown)
     }
-    func testNextOSMinorVersionRequiresNewFlagEvidenceButKeepsExplicitCharging() {
-        let nextMinor = OperatingSystemVersion(majorVersion: 27, minorVersion: 3, patchVersion: 0)
-        let sameMinorPatch = OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 1)
-        for product in [803, 801] {
-            XCTAssertEqual(decode(3, product: product, system: sameMinorPatch), .charging)
-            XCTAssertEqual(decode(3, product: product, system: nextMinor), .unknown)
-            XCTAssertEqual(decode(4, product: product, system: nextMinor), .unknown)
-            XCTAssertEqual(decode(3, product: product, system: nextMinor, a: true), .charging)
-            XCTAssertEqual(decode(4, product: product, system: nextMinor, b: false), .idle)
-            XCTAssertEqual(decode(3, product: product, system: nextMinor, a: true, b: false), .unknown)
+    func testRecognizedFlagsBehaveConsistentlyAcrossOSVersions() {
+        let versions = [
+            OperatingSystemVersion(majorVersion: 14, minorVersion: 0, patchVersion: 0),
+            OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 1),
+            OperatingSystemVersion(majorVersion: 27, minorVersion: 3, patchVersion: 0),
+            OperatingSystemVersion(majorVersion: 28, minorVersion: 0, patchVersion: 0)
+        ]
+        for system in versions {
+            for product in [803, 801] {
+                XCTAssertEqual(decode(3, product: product, system: system), .charging)
+                XCTAssertEqual(decode(4, product: product, system: system), .idle)
+                XCTAssertEqual(decode(2, product: product, system: system), .unknown)
+                XCTAssertEqual(decode(3, percent: 100, product: product, system: system), .unknown)
+                XCTAssertEqual(decode(3, product: product, system: system, a: false), .unknown)
+                XCTAssertEqual(decode(4, product: product, system: system, b: true), .unknown)
+                XCTAssertEqual(decode(3, product: product, system: system, a: true, b: false), .unknown)
+            }
         }
     }
     func testDuplicateConflictAndFreshMenuEligibility() {
