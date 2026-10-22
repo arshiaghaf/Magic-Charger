@@ -46,4 +46,38 @@ final class ControlsWindowTests: XCTestCase {
         XCTAssertFalse(window.isVisible)
         window.close()
     }
+
+    func testDeviceCardExposesEachReadingOnceAndKeepsControls() throws {
+        let application = NSApplication.shared
+        let controller = ControlsWindow(target: application, enable: #selector(NSApplication.terminate(_:)),
+            test: #selector(NSApplication.terminate(_:)), updates: #selector(NSApplication.terminate(_:)),
+            loginSettings: #selector(NSApplication.terminate(_:)), quit: #selector(NSApplication.terminate(_:)),
+            preferences: MenuBarPreferences(), alerts: NotificationPreferences(),
+            onChange: { _ in }, onAlertsChange: { _ in }, onLoginChange: { _ in })
+        let reading = Reading(id: "SIMULATED", name: "Magic Mouse", symbol: "magicmouse", percent: 79,
+            state: .charging, sampled: Date(), evidence: "SIMULATED")
+        controller.update(readings: [reading], notificationStatus: "Notifications enabled.", feedback: "", diagnostic: "SIMULATED")
+        let window = try XCTUnwrap(controller.window)
+        window.contentView?.layoutSubtreeIfNeeded()
+        func findBox(_ view: NSView) -> NSBox? {
+            if let box = view as? NSBox { return box }
+            return view.subviews.lazy.compactMap(findBox).first
+        }
+        let box = try XCTUnwrap(findBox(try XCTUnwrap(window.contentView)))
+        XCTAssertEqual(box.accessibilityRole(), .group)
+        XCTAssertNil(box.accessibilityLabel())
+        let cells = try XCTUnwrap(box.accessibilityChildren() as? [NSCell])
+        XCTAssertEqual(cells.compactMap { $0 as? NSImageCell }.count, 1)
+        XCTAssertTrue(try XCTUnwrap(cells.compactMap { $0 as? NSImageCell }.first).isAccessibilityHidden())
+        XCTAssertEqual(cells.filter { !$0.isAccessibilityHidden() }.compactMap { $0.accessibilityValue() as? String },
+            ["Magic Mouse", "Charging", "79%"])
+        func descendants(_ view: NSView) -> [NSView] {
+            [view] + view.subviews.flatMap(descendants)
+        }
+        let all = descendants(try XCTUnwrap(window.contentView))
+        XCTAssertEqual(all.compactMap { $0 as? NSTextField }.first { $0.stringValue == "79%" }?.accessibilityLabel(), "79 percent")
+        let buttonTitles = Set(all.compactMap { $0 as? NSButton }.map(\.title))
+        XCTAssertTrue(buttonTitles.isSuperset(of: ["Send Test", "Quit Magic Charger", "Launch at Login"]))
+        window.close()
+    }
 }

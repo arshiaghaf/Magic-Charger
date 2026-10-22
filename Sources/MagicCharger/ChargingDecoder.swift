@@ -1,27 +1,25 @@
 import Foundation
 
 struct ChargingDecoder {
-    // Deliberately narrow compatibility profile, based on controlled cable
-    // transitions. This is not a general interpretation of undocumented flags.
-    static func fullChargeEvidence(vendor: Int, product: Int, transport: String?, os: OperatingSystemVersion,
+    // The 3/4 transitions were observed on macOS 27.2 for these two models.
+    // Match the known device, transport and flag values without assuming that
+    // every nonzero flag, other model, or other transport has the same meaning.
+    private static func supportsRecognizedFlags(vendor: Int, product: Int, transport: String?) -> Bool {
+        vendor == 76 && (product == 803 || product == 801) && transport == "Bluetooth"
+    }
+
+    static func fullChargeEvidence(vendor: Int, product: Int, transport: String?, os _: OperatingSystemVersion,
                                    percent: Int?, flags: Int?, batteryCharging: Bool?, isCharging: Bool?) -> Bool {
-        vendor == 76 && [803, 801].contains(product) && transport == "Bluetooth" &&
-        os.majorVersion == 27 && os.minorVersion == 2 && percent == 100 && flags == 3 &&
+        supportsRecognizedFlags(vendor: vendor, product: product, transport: transport) &&
+        percent == 100 && flags == 3 &&
         batteryCharging != false && isCharging != false
     }
-    static func decode(vendor: Int, product: Int, transport: String?, os: OperatingSystemVersion,
+    static func decode(vendor: Int, product: Int, transport: String?, os _: OperatingSystemVersion,
                        percent: Int?, flags: Int?, batteryCharging: Bool?, isCharging: Bool?) -> Charging {
         if let a = batteryCharging, let b = isCharging, a != b { return .unknown }
         let explicit = (batteryCharging ?? isCharging).map { $0 ? Charging.charging : .idle }
         var indication: Charging = .unknown
-        // Each model was validated separately; do not extend this list by family name.
-        let validatedProduct: Bool
-        switch product {
-        case 803: validatedProduct = true // Magic Mouse profile
-        case 801: validatedProduct = true // Magic Keyboard profile
-        default: validatedProduct = false
-        }
-        if vendor == 76, validatedProduct, transport == "Bluetooth", os.majorVersion == 27, os.minorVersion == 2 {
+        if supportsRecognizedFlags(vendor: vendor, product: product, transport: transport) {
             switch flags {
             case 4: indication = .idle
             case 3:

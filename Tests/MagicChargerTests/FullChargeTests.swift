@@ -45,4 +45,27 @@ final class FullChargeTests: XCTestCase {
                 percent: 100, flags: 3, batteryCharging: false, isCharging: nil))
         }
     }
+    func testFullFlagEvidenceBehavesConsistentlyAcrossOSVersions() {
+        let versions = [
+            OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 0),
+            OperatingSystemVersion(majorVersion: 27, minorVersion: 3, patchVersion: 0),
+            OperatingSystemVersion(majorVersion: 28, minorVersion: 0, patchVersion: 0)
+        ]
+        for system in versions {
+            for product in [801, 803] {
+                XCTAssertTrue(ChargingDecoder.fullChargeEvidence(vendor: 76, product: product, transport: "Bluetooth", os: system,
+                    percent: 100, flags: 3, batteryCharging: nil, isCharging: nil))
+                XCTAssertFalse(ChargingDecoder.fullChargeEvidence(vendor: 76, product: product, transport: "Bluetooth", os: system,
+                    percent: 100, flags: 4, batteryCharging: nil, isCharging: nil))
+                XCTAssertFalse(ChargingDecoder.fullChargeEvidence(vendor: 76, product: product, transport: "Bluetooth", os: system,
+                    percent: 100, flags: 2, batteryCharging: nil, isCharging: nil))
+                XCTAssertFalse(ChargingDecoder.fullChargeEvidence(vendor: 76, product: product, transport: "Bluetooth", os: system,
+                    percent: 100, flags: 3, batteryCharging: false, isCharging: nil))
+                XCTAssertFalse(ChargingDecoder.fullChargeEvidence(vendor: 76, product: product, transport: "USB", os: system,
+                    percent: 100, flags: 3, batteryCharging: nil, isCharging: nil))
+            }
+            XCTAssertFalse(ChargingDecoder.fullChargeEvidence(vendor: 76, product: 999, transport: "Bluetooth", os: system,
+                percent: 100, flags: 3, batteryCharging: nil, isCharging: nil))
+        }
+    }
 }
