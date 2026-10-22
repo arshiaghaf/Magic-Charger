@@ -7,4 +7,4 @@
 - Commands/results:
 - Hardware evidence (if applicable):
 - Remaining limits:
-- Codex approval: link the actual thumbs-up for the final head before merging.
+- Review: link approval of the final head before merging.
