@@ -1,6 +1,6 @@
 # Magic Charger
 
-Magic Charger is a macOS menu-bar utility for Magic Keyboard and Magic Mouse charging notifications. It shows a separate battery level for each supported accessory while verified charging evidence is present, then removes the menu-bar item when that evidence ends. Monitoring continues in the background.
+Magic Charger is a macOS menu-bar utility for Magic Keyboard and Magic Mouse charging notifications. Its reminders support charging habits aimed at preserving long-term accessory battery health. It shows a separate battery level for each supported accessory while verified charging evidence is present, then removes the menu-bar item when that evidence ends. Monitoring continues in the background.
 
 Optional local notifications tell you when charging starts and when a device reaches 78%, 80%, or 100%. You choose which alerts are enabled. Magic Charger does not stop charging or control power to an accessory.
 
@@ -14,7 +14,7 @@ The controls window lets you choose which menu-bar elements and alerts to show, 
 
 - Shows each verified charging accessory separately, without averaging battery levels
 - Offers independent menu-bar choices for the device glyph, percentage, and battery bar
-- Offers independent Charging Started, Unplug Soon (78%), Unplug Reminder (80%), and Fully Charged (100%) alerts
+- Offers independent Charging Started, Unplug Soon (78%), Unplug Reminder (80%), and Fully Charged (100%) alerts; the 80% reminder prompts you to unplug to help preserve long-term battery health
 - Consumes skipped and disabled alert milestones so old readings do not trigger later reminders
 - Keeps controls, notification settings, a test notification, and Quit available when the menu bar is empty
 - Opens the official GitHub Releases page from **View Releases**; it does not download or install updates
