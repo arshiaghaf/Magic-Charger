@@ -12,7 +12,7 @@ struct LoginItemViewState {
 
     init(_ status: SMAppService.Status) {
         toggle = status == .enabled ? .on : (status == .requiresApproval ? .mixed : .off)
-        canToggle = status == .notRegistered || status == .enabled
+        canToggle = status == .notRegistered || status == .notFound || status == .enabled
         needsApproval = status == .requiresApproval
     }
 }
@@ -179,7 +179,7 @@ final class ControlsWindow: NSWindowController {
         case .enabled: loginHint.stringValue = "Starts automatically when you sign in."
         case .notRegistered: loginHint.stringValue = feedback.isEmpty ? "Optional; currently off." : feedback
         case .requiresApproval: loginHint.stringValue = "Registered; approval needed in System Settings > General > Login Items."
-        case .notFound: loginHint.stringValue = "Available from the signed app bundle."
+        case .notFound: loginHint.stringValue = "Service not found. Enable to retry registration; failures will be shown."
         @unknown default: loginHint.stringValue = "Login item status unavailable."
         }
         if !feedback.isEmpty && status != .notRegistered { loginHint.stringValue = feedback }

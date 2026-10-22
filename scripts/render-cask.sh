@@ -33,6 +33,12 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 hdiutil attach -quiet -readonly -nobrowse -mountpoint "$MOUNT_DIR" "$ASSET"
 MOUNTED=1
+PLIST="$MOUNT_DIR/Magic Charger.app/Contents/Info.plist"
+if [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")" != co.arshia.magiccharger ] ||
+   [ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")" != "$VERSION" ]; then
+    echo "Published DMG bundle identity/version does not match the requested release" >&2
+    exit 2
+fi
 ARCHITECTURES="$(lipo -archs "$MOUNT_DIR/Magic Charger.app/Contents/MacOS/MagicCharger")"
 if [ "$ARCHITECTURES" != arm64 ]; then
     echo "Published DMG must contain an arm64-only app; found: $ARCHITECTURES" >&2

@@ -28,7 +28,7 @@ Use one model and OS version per report. Observe a normal charging session; do n
 | Unplug, then reconnect | Item disappears when charging evidence ends; reconnect without a fresh observed idle-to-charging transition does not replay Charging Started | Both transitions and whether each was observed in the same running process |
 | Sleep and wake | Stale status is removed during sleep; wake rechecks before showing charging | Whether the device remained connected and the first fresh result |
 | Two accessories, or duplicate transports | Each verified accessory behaves independently; conflicting readings do not create a charging item | Generic model families and any disagreement, without identifiers |
-| Natural 78%, 80% or 100% crossing | At most one eligible alert per device session; a jump over 78% and 80% selects the higher alert | Before/after percentages, alert settings, Notification Center receipt and banner appearance separately |
+| Natural 78%, 80% or 100% crossing | At most once per enabled milestone per device session; one reading crossing multiple milestones selects only the highest enabled eligible alert | Before/after percentages, alert settings, Notification Center receipt and banner appearance separately |
 
 For each check, mark **pass**, **fail**, or **not observed** and describe expected versus actual behavior. Do not infer charging from USB presence, a rising percentage or a nonzero flag alone. Observation time is not proof that the driver value is fresh. Do not include addresses, serials, personalized names, screenshots containing personal data or broad registry dumps in public reports. Share only the relevant model family, vendor/product IDs, transport, percentage and charging properties after redaction.
 

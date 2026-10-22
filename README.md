@@ -17,7 +17,7 @@ open "build/Magic Charger.app"
 
 The script uses an explicitly supplied `DEVELOPER_DIR`, otherwise `/Applications/Xcode.app` when installed, otherwise the active developer selection. It does not change global tooling. The bundle is locally ad-hoc signed. Use `CONFIGURATION=release sh build-app.sh` for an optimized local build; the default is debug. Run `swift test` with the same compatible developer directory for deterministic checks.
 
-The release-preparation DMG currently contains an ARM64 app only; an Intel or universal distribution has not been verified. Earlier source previews used bundle ID `local.magiccharger.app`; new builds use `co.arshia.magiccharger`. macOS treats the new ID as a separate app, so notification permission must be enabled again and saved menu/alert preferences, the local identity key and notification-session history start fresh. The older preview's data is not imported or removed. Quit the older preview before opening a new build to avoid running both copies at once.
+The release-preparation DMG currently contains an ARM64 app only; an Intel or universal distribution has not been verified. Earlier source previews used bundle ID `local.magiccharger.app`; new builds use `co.arshia.magiccharger`. macOS treats the new ID as a separate app, so notification permission must be enabled again and saved menu/alert preferences, the local identity key and notification-session history start fresh. The older preview's data is not imported or removed. If Launch at Login was enabled in the older preview, disable it there (or remove that old entry in macOS Login Items) before quitting the older preview and opening the new build. Otherwise the old copy can return at the next login and duplicate monitoring or alerts.
 
 ## Use
 

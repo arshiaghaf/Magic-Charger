@@ -26,6 +26,10 @@ final class ControlsWindowTests: XCTestCase {
         XCTAssertTrue(enabled.canToggle)
         XCTAssertFalse(enabled.needsApproval)
         XCTAssertEqual(LoginItemViewState(.notRegistered).toggle, .off)
+        let notFound = LoginItemViewState(.notFound)
+        XCTAssertEqual(notFound.toggle, .off)
+        XCTAssertTrue(notFound.canToggle)
+        XCTAssertFalse(notFound.needsApproval)
     }
 
     func testFourAlertLayoutBuildsWithoutPrematureCrossHierarchyConstraints() throws {
