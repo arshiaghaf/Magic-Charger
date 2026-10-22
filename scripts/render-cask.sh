@@ -22,6 +22,26 @@ case "$URL" in
     */"$DMG"|*/"$DMG"\?*) ;;
     *) echo "URL must name the same versioned DMG asset" >&2; exit 2 ;;
 esac
+
+# Check the supplied release asset itself before declaring an ARM-only cask.
+MOUNT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/magic-charger-cask.XXXXXX")"
+MOUNTED=0
+cleanup() {
+    if [ "$MOUNTED" -eq 1 ]; then hdiutil detach -quiet "$MOUNT_DIR" >/dev/null 2>&1 || true; fi
+    rmdir "$MOUNT_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
+hdiutil attach -quiet -readonly -nobrowse -mountpoint "$MOUNT_DIR" "$ASSET"
+MOUNTED=1
+ARCHITECTURES="$(lipo -archs "$MOUNT_DIR/Magic Charger.app/Contents/MacOS/MagicCharger")"
+if [ "$ARCHITECTURES" != arm64 ]; then
+    echo "Published DMG must contain an arm64-only app; found: $ARCHITECTURES" >&2
+    exit 2
+fi
+hdiutil detach -quiet "$MOUNT_DIR"
+MOUNTED=0
+rmdir "$MOUNT_DIR"
+trap - EXIT HUP INT TERM
 SHA256="$(shasum -a 256 "$ASSET" | awk '{print $1}')"
 
 cat <<CASK
@@ -35,6 +55,7 @@ cask "magic-charger" do
   homepage "https://github.com/arshiaghaf/Magic-Charger"
 
   depends_on macos: :sonoma
+  depends_on arch: :arm64
   app "Magic Charger.app"
 end
 CASK

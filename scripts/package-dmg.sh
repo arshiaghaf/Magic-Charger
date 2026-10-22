@@ -20,6 +20,11 @@ fi
 
 codesign --verify --strict "$APP"
 cmp LICENSE "$APP/Contents/Resources/LICENSE"
+ARCHITECTURES="$(lipo -archs "$APP/Contents/MacOS/MagicCharger")"
+if [ "$ARCHITECTURES" != arm64 ]; then
+    echo "Release DMG currently supports arm64 only; found: $ARCHITECTURES" >&2
+    exit 2
+fi
 
 mkdir -p dist
 STAGING="$(mktemp -d "${TMPDIR:-/tmp}/magic-charger-dmg.XXXXXX")"
@@ -40,4 +45,4 @@ hdiutil create -quiet -volname "Magic Charger $VERSION" -srcfolder "$STAGING" \
     -fs HFS+ -format UDZO "dist/$DMG"
 hdiutil verify -quiet "dist/$DMG"
 (cd dist && shasum -a 256 "$DMG" > SHA256SUMS)
-echo "Created dist/$DMG and dist/SHA256SUMS (ad-hoc signed; not notarized)"
+echo "Created dist/$DMG and dist/SHA256SUMS (arm64 only; ad-hoc signed; not notarized)"

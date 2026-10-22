@@ -13,7 +13,7 @@ permissions:
   contents: read
 jobs:
   package:
-    runs-on: macos-latest
+    runs-on: macos-26
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -27,6 +27,7 @@ jobs:
         run: sh scripts/package-dmg.sh
       - name: Verify release metadata
         run: |
+          test "$(lipo -archs 'build/Magic Charger.app/Contents/MacOS/MagicCharger')" = arm64
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' 'build/Magic Charger.app/Contents/Info.plist')" = co.arshia.magiccharger
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' 'build/Magic Charger.app/Contents/Info.plist')" = "$(cat VERSION)"
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' 'build/Magic Charger.app/Contents/Info.plist')" = "$(cat BUILD_NUMBER)"
