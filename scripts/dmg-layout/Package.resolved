@@ -1,0 +1,15 @@
+{
+  "originHash" : "9c5cfc2893aa546b78f92a4a76a01204b1f89c17216765356cb7cd4f3040f350",
+  "pins" : [
+    {
+      "identity" : "dsstore",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sindresorhus/DSStore.git",
+      "state" : {
+        "revision" : "6dc395837c3dc371f9c3e71794fab719db74c17a",
+        "version" : "1.0.0"
+      }
+    }
+  ],
+  "version" : 3
+}
