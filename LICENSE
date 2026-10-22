@@ -1,14 +1,16 @@
 License scope
 
 The MIT License below applies to Magic Charger software and documentation in
-source, compiled, and generated forms, including the app executable and DMG
-background, except for the artwork and third-party media identified here.
+source, compiled, and generated forms, including the app executable, except
+for the original artwork and third-party media identified here.
 
-© 2026 Arshia Ghaf. All rights reserved for the Magic Charger app icon artwork:
-assets/MagicCharger-master.png and its derived assets/MagicCharger.icns,
-including copies in the app bundle and as the DMG volume icon. These images
-are not offered for reuse under the MIT License. Ask the project maintainer
-for permission to reuse the artwork.
+© 2026 Arshia Ghaf. All rights reserved for the following Magic Charger
+artwork: assets/MagicCharger-master.png, its derived assets/MagicCharger.icns,
+and the generated DMG background .background/installer.png. This includes
+copies of the icon in the app bundle and as the DMG volume icon, and copies of
+the background in a DMG. These images are not offered for reuse under the MIT
+License. Ask the project maintainer for permission to reuse the artwork.
+The source code that generates the DMG background remains under MIT.
 
 The Apple "Example App" image at docs/images/macos-sequoia-open-anyway.png
 and the magicmouse SF Symbol supplied by macOS are third-party media and are
