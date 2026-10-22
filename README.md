@@ -1,12 +1,39 @@
 # Magic Charger
 
-A native macOS menu-bar utility for Magic Keyboard and Magic Mouse charging notifications. Built with Swift, AppKit, IOKit and UserNotifications, with no third-party dependencies.
+Magic Charger is a macOS menu-bar utility for Magic Keyboard and Magic Mouse charging notifications. It shows a separate battery level for each supported accessory while verified charging evidence is present, then removes the menu-bar item when that evidence ends. Monitoring continues in the background.
 
-**Early source preview.** The deployment target is macOS 14 or later. Charging evidence from device flags has only been checked for the specific model/OS combinations below. There is no downloadable release, Developer ID signature or notarization.
+Optional local notifications tell you when charging starts and when a device reaches 78%, 80%, or 100%. You choose which alerts are enabled. Magic Charger does not stop charging or control power to an accessory.
 
-## Build and Run
+## What Magic Charger Does
 
-Requires macOS and an installed compatible Xcode/Swift 6.0-or-later toolchain.
+Magic Charger reads relevant accessory battery information through IOKit. It shows charging devices in the menu bar with a device glyph, exact percentage, and battery bar. When no supported device has verified charging evidence, the menu-bar items disappear; reopen the app from Finder or Spotlight for controls and Quit.
+
+The controls window lets you choose which menu-bar elements and alerts to show, check notification permission, and send one clearly labeled test notification without simulating charging. Closing the window keeps monitoring. There is no permanent Dock icon. **Launch at Login** is off by default and can be enabled in General.
+
+## Features
+
+- Shows each verified charging accessory separately, without averaging battery levels
+- Offers independent menu-bar choices for the device glyph, percentage, and battery bar
+- Offers independent Charging Started, Unplug Soon (78%), Unplug Reminder (80%), and Fully Charged (100%) alerts
+- Consumes skipped and disabled alert milestones so old readings do not trigger later reminders
+- Keeps controls, notification settings, a test notification, and Quit available when the menu bar is empty
+- Opens the official GitHub Releases page from **View Releases**; it does not download or install updates
+
+## Install
+
+Magic Charger is currently a source preview. There is no downloadable release yet.
+
+### GitHub Releases (DMG) — WIP
+
+A downloadable DMG is not available yet. When one is published, it will appear on [GitHub Releases](https://github.com/arshiaghaf/MagicCharger/releases). The current release-preparation DMG contains an ARM64 app; Intel and universal distribution have not been verified.
+
+### Homebrew — WIP
+
+Homebrew installation for Magic Charger is WIP. The tap, cask, and installation command are TBA.
+
+### Build from source
+
+Requires macOS 14 or later and an installed compatible Xcode/Swift 6.0-or-later toolchain.
 
 ```sh
 git clone https://github.com/arshiaghaf/MagicCharger.git
@@ -15,72 +42,62 @@ sh build-app.sh
 open "build/Magic Charger.app"
 ```
 
-The script uses an explicitly supplied `DEVELOPER_DIR`, otherwise `/Applications/Xcode.app` when installed, otherwise the active developer selection. It does not change global tooling. The bundle is locally ad-hoc signed. Use `CONFIGURATION=release sh build-app.sh` for an optimized local build; the default is debug. Run `swift test` with the same compatible developer directory for deterministic checks.
+The script builds an ad-hoc signed local app. It uses an explicitly supplied `DEVELOPER_DIR`, otherwise an installed Xcode in `/Applications/Xcode.app`, otherwise the active developer selection. It does not change the global selection. Use `CONFIGURATION=release sh build-app.sh` for an optimized local build; the default is debug. Run `swift test` with the same compatible developer directory for deterministic checks.
 
-The release-preparation DMG currently contains an ARM64 app only; an Intel or universal distribution has not been verified. Earlier source previews used bundle ID `local.magiccharger.app`; new builds use `co.arshia.magiccharger`. macOS treats the new ID as a separate app, so notification permission must be enabled again and saved menu/alert preferences, the local identity key and notification-session history start fresh. The older preview's data is not imported or removed. If Launch at Login was enabled in the older preview, disable it there (or remove that old entry in macOS Login Items) before quitting the older preview and opening the new build. Otherwise the old copy can return at the next login and duplicate monitoring or alerts.
+### First launch of an unnotarized download
 
-### First launch of an unnotarized build
-
-Magic Charger builds are ad-hoc signed, without a Developer ID signature or notarization. A downloaded build may show a warning that the developer cannot be verified or Apple cannot check it for malicious software. There is no downloadable release yet.
-
-If a future official download comes from a source you trust, you are certain it has not been tampered with, and macOS shows either of those warnings:
+Magic Charger builds do not have a Developer ID signature or notarization. If a future official download comes from a source you trust, you are certain it has not been tampered with, and macOS says the developer cannot be verified or Apple cannot check the app for malicious software:
 
 1. Place Magic Charger in Applications and try opening it. Dismiss the warning if one appears.
 2. Open **System Settings > Privacy & Security**, scroll to **Security**, then choose **Open Anyway** for Magic Charger.
 3. Confirm with **Open** and authenticate if macOS asks. Try opening the app again if needed.
 
-Do not override a warning that the app **will damage your computer** or **is damaged**. See [Apple's guidance on safely opening apps](https://support.apple.com/en-us/102445) before approving an unnotarized app. These steps do not require changing the system-wide app security setting.
+Do not override a warning that the app **will damage your computer** or **is damaged**. Read [Apple's guidance on safely opening apps](https://support.apple.com/en-us/102445) before approving an unnotarized app. These steps do not change the system-wide app security setting.
 
-## Use
+## Limitations
 
-Each verified charging accessory gets its own menu-bar item. When none qualifies, the items disappear and lightweight monitoring continues. Reopen the app from Finder or Spotlight for controls and Quit. Closing the controls window keeps monitoring; there is no permanent Dock icon. **Launch at Login** is off until you enable it in General, and macOS manages the login item. Login launches keep the controls closed.
+The macOS 14 deployment target does not establish charging detection on macOS 14. Observed flag-based charging profiles are limited to these Bluetooth services on macOS 27.2.x:
 
-Choose **Enable Notifications** and answer the native macOS prompt to receive alerts. Monitoring remains available if you decline. **Notification Settings** opens System Settings; choose Notifications > Magic Charger to change permission or presentation. **Send Test** submits one clearly labeled test without changing battery or session state. Focus and screen-sharing/mirroring policy may suppress banners even when Notification Center receives an alert.
-
-**View Releases** opens the official GitHub releases page in your browser. It does not check for or install updates automatically.
-
-## Features
-
-- Separate device glyph, exact battery percentage and vertical level bar for each charging device; no averages.
-- Three saved menu-display choices, with at least one element visible. The monochrome native bar rounds down in 10% steps; it never draws full before actual 100%.
-- Four saved independent alert switches: Charging Started, Unplug Soon (78%), Unplug Reminder (80%), Fully Charged (100%). All default on.
-- Charging-start alerts show the actual current percentage after an observed fresh idle-to-charging transition.
-- Once-per-session milestones, skipped-level handling and conservative reconnect/restart deduplication. Disabled events do not replay when re-enabled.
-- Native accessory cards, About/version information, notification controls and secondary Technical Details.
-
-The Magic Mouse glyph is Apple's runtime `magicmouse` SF Symbol representing the accessory. Apple symbol artwork is not bundled or licensed under this project's MIT license.
-
-## Compatibility and limitations
-
-| Accessory profile | Evidence checked | Scope |
+| Accessory | Profile | Current evidence |
 | --- | --- | --- |
-| Magic Mouse, vendor 76/product 803, Bluetooth | Cable plug/unplug changes; charging display and automatic menu appearance/removal confirmed by a user | macOS 27.2.x |
-| Magic Keyboard, vendor 76/product 801, Bluetooth | Cable plug/unplug flag changes confirmed by a user | macOS 27.2.x; live charging UI still needs validation |
+| Magic Mouse | Vendor 76, product 803 | User-confirmed cable transitions, charging display, and automatic menu-bar appearance/removal |
+| Magic Keyboard | Vendor 76, product 801 | User-confirmed cable transitions; live charging UI still needs validation |
 
-The macOS 14 deployment target means the app can be built for that version; it does not establish charging detection on macOS 14. The table describes narrow observations, not a universal hardware specification or a promise that every accessory revision behaves the same way.
+For these profiles, flag 3 with a valid percentage below 100% indicates charging and flag 4 indicates not charging. These are narrow observations, not a general flag specification. Recognized explicit Boolean charging properties can also provide evidence. Missing, conflicting, stale, or unvalidated readings stay unknown; USB presence alone is not enough.
 
-- Raw-flags profiles currently cover vendor 76/product 803 Magic Mouse and vendor 76/product 801 Magic Keyboard, reporting Bluetooth on macOS 27.2.x. Flag 3 below 100% is charging indication; flag 4 is not charging. Other values and unvalidated model/OS combinations stay unknown. These are observed compatibility profiles, not a universal documented specification.
-- Recognized explicit Boolean charging properties can provide evidence. Conflicts, missing or stale observations remain unknown. USB presence alone is insufficient.
-- At 100%, the menu item may disappear because active charging is uncertain. A supported full reading can still notify after continuous charging evidence; it does not prove that current stopped or that power bypasses the battery.
-- Polling fallback is 30 seconds idle/unknown and 10 seconds charging, alongside registry event hints. Cached driver values can still be stale, and exact alert percentages are not guaranteed.
-- Initial/recovered readings do not trigger historical alerts. An entire charging cycle while the app is absent cannot be reconstructed. Missing stable identity limits reconnect deduplication.
-- Notifications are optional reminders. There is no automatic power cutoff, precise time-to-target estimate or guaranteed battery-health improvement.
+- At 100%, the menu-bar item may disappear because active charging is uncertain. A supported full reading can still notify after continuous charging evidence; it does not prove that charging current stopped or power bypasses the battery.
+- Registry events prompt updates, with fallback polling every 30 seconds when idle or unknown and every 10 seconds while charging. Cached driver values may still be stale, so exact alert percentages are not guaranteed.
+- An entire charging cycle while the app is not running cannot be reconstructed. Missing stable device identity limits reconnect deduplication.
+- Alerts require macOS notification permission. Focus and screen-sharing settings can suppress banners even when Notification Center receives an alert.
+- Real 78%, 80%, and 100% crossings, simultaneous charging, keyboard charging UI, sleep/wake, broader hardware/OS support, and banner presentation still need hardware validation.
+- App Store sandbox compatibility and Intel builds remain unverified.
+- Notifications are optional reminders. Magic Charger does not provide automatic charge cutoff, a precise time-to-target estimate, or a guaranteed battery-health improvement.
 
-See [Validation](docs/VALIDATION.md) for actual evidence and pending hardware checks. App Store sandbox compatibility, signed distribution and broader device/OS support remain unverified.
+See the [validation evidence and hardware checklist](docs/VALIDATION.md) before reporting a new device result. Include only generic model and OS details in a [bug report](https://github.com/arshiaghaf/MagicCharger/issues/new/choose); do not post raw identifiers or registry dumps.
 
-To report a device result, use the [hardware validation checklist](docs/VALIDATION.md#hardware-validation-checklist) and a [bug report](https://github.com/arshiaghaf/MagicCharger/issues/new/choose). Include only generic model and OS information; keep raw identifiers and registry dumps private.
+## Moving from an Earlier Preview
+
+Earlier previews used bundle ID `local.magiccharger.app`; current builds use `co.arshia.magiccharger`. macOS treats them as separate apps. Notification permission, preferences, and local alert-session history start fresh, while the older data remains in place. If you enabled Launch at Login in an older preview, disable that entry before quitting it and opening a new build to avoid duplicate monitoring. See [Support](SUPPORT.md) for recovery steps.
 
 ## Privacy and Security
 
-The app has no network client, analytics, accounts or cloud service. It reads only relevant accessory telemetry and never captures input. A supported accessory address is read transiently to derive an installation-keyed HMAC identity; raw addresses, serials and personalized device names are not stored or logged. Local preferences, the identity key, digests and bounded notification-session history use UserDefaults.
+Magic Charger has no network client, analytics, account, or backend. It reads relevant accessory telemetry and never captures keyboard or mouse input. A supported accessory address is used transiently to derive an installation-keyed local identity; raw addresses, serials, and personalized names are not stored or logged. Local preferences and bounded notification-session history use UserDefaults.
 
-Read the [privacy details](docs/PRIVACY.md), [support guidance](SUPPORT.md) and [security reporting policy](SECURITY.md). Public registry APIs are used; private accessory IOPowerSources APIs are not used. Undocumented registry property semantics remain a compatibility risk.
+See [Privacy](docs/PRIVACY.md) for details and [Security](SECURITY.md) for reporting suspected vulnerabilities. Charging evidence depends on accessory registry properties whose semantics may vary across hardware and macOS versions.
+
+The Magic Mouse glyph is Apple's runtime `magicmouse` SF Symbol. Apple symbol artwork is not bundled under this project's MIT license.
 
 ## Contributing
 
-Start with [CONTRIBUTING.md](CONTRIBUTING.md). Keep changes focused, run the local checks and distinguish simulated tests from real hardware evidence. [Architecture](docs/ARCHITECTURE.md) describes the monitoring and notification paths. CI compiles, tests and validates bundle packaging; it cannot validate charging hardware.
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Keep changes focused and distinguish deterministic tests from real-device checks.
 
-See [CHANGELOG.md](CHANGELOG.md) for source-preview changes.
+Developer documentation:
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Validation](docs/VALIDATION.md)
+- [Changelog](CHANGELOG.md)
+
+CI builds and tests the app and verifies bundle packaging. It cannot validate physical charging or visible notifications.
 
 ## License
 
