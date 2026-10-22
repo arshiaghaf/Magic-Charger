@@ -9,8 +9,8 @@ A native macOS menu-bar utility for Magic Keyboard and Magic Mouse charging noti
 Requires macOS and an installed compatible Xcode/Swift 6.0-or-later toolchain.
 
 ```sh
-git clone https://github.com/arshiaghaf/Magic-Charger.git
-cd Magic-Charger
+git clone https://github.com/arshiaghaf/MagicCharger.git
+cd MagicCharger
 sh build-app.sh
 open "build/Magic Charger.app"
 ```
@@ -68,7 +68,7 @@ The macOS 14 deployment target means the app can be built for that version; it d
 
 See [Validation](docs/VALIDATION.md) for actual evidence and pending hardware checks. App Store sandbox compatibility, signed distribution and broader device/OS support remain unverified.
 
-To report a device result, use the [hardware validation checklist](docs/VALIDATION.md#hardware-validation-checklist) and a [bug report](https://github.com/arshiaghaf/Magic-Charger/issues/new/choose). Include only generic model and OS information; keep raw identifiers and registry dumps private.
+To report a device result, use the [hardware validation checklist](docs/VALIDATION.md#hardware-validation-checklist) and a [bug report](https://github.com/arshiaghaf/MagicCharger/issues/new/choose). Include only generic model and OS information; keep raw identifiers and registry dumps private.
 
 ## Privacy and Security
 

@@ -312,7 +312,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         }
     }
     @objc func viewReleases() {
-        let releases = URL(string: "https://github.com/arshiaghaf/Magic-Charger/releases")!
+        let releases = URL(string: "https://github.com/arshiaghaf/MagicCharger/releases")!
         controls.updateFeedbackForUpdates(NSWorkspace.shared.open(releases) ? "" : "Couldn’t open the releases page. Try again from your browser.")
     }
     @objc func openLoginItemsSettings() { SMAppService.openSystemSettingsLoginItems() }
