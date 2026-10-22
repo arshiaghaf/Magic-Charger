@@ -45,4 +45,13 @@ final class FullChargeTests: XCTestCase {
                 percent: 100, flags: 3, batteryCharging: false, isCharging: nil))
         }
     }
+    func testFullFlagEvidenceRemainsWithinObservedOSProfile() {
+        let nextMinor = OperatingSystemVersion(majorVersion: 27, minorVersion: 3, patchVersion: 0)
+        for product in [801, 803] {
+            XCTAssertFalse(ChargingDecoder.fullChargeEvidence(vendor: 76, product: product, transport: "Bluetooth", os: nextMinor,
+                percent: 100, flags: 3, batteryCharging: nil, isCharging: nil))
+            XCTAssertFalse(ChargingDecoder.fullChargeEvidence(vendor: 76, product: product, transport: "Bluetooth", os: nextMinor,
+                percent: 100, flags: 3, batteryCharging: true, isCharging: nil))
+        }
+    }
 }

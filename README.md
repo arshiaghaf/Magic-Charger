@@ -67,7 +67,7 @@ The macOS 14 deployment target does not establish charging detection on macOS 14
 | Magic Mouse | Vendor 76, product 803 | User-confirmed cable transitions, charging display, and automatic menu-bar appearance/removal |
 | Magic Keyboard | Vendor 76, product 801 | User-confirmed cable transitions; live charging UI still needs validation |
 
-For these profiles, flag 3 with a valid percentage below 100% indicates charging and flag 4 indicates not charging. These are narrow observations, not a general flag specification. Recognized explicit Boolean charging properties can also provide evidence. Missing, conflicting, stale, or unvalidated readings stay unknown; USB presence alone is not enough.
+For these profiles, flag 3 with a valid percentage below 100% indicates charging and flag 4 indicates not charging. These are narrow observations, not a general flag specification. The exact macOS 27.2 gate keeps flag-only readings, including full-charge evidence, unknown on later minor versions until a cable transition is checked there. Recognized explicit Boolean charging properties can still provide charging-state evidence. Missing, conflicting, stale, or unvalidated readings stay unknown; USB presence alone is not enough.
 
 - At 100%, the menu-bar item may disappear because active charging is uncertain. A supported full reading can still notify after continuous charging evidence; it does not prove that charging current stopped or power bypasses the battery.
 - Registry events prompt updates, with fallback polling every 30 seconds when idle or unknown and every 10 seconds while charging. Cached driver values may still be stale, so exact alert percentages are not guaranteed.

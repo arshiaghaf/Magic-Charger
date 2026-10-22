@@ -32,6 +32,8 @@ final class DeviceCards {
         let box = NSBox(); box.boxType = .custom; box.cornerRadius = 12; box.borderWidth = 0
         box.fillColor = .controlBackgroundColor; box.contentViewMargins = NSSize(width: 16, height: 12)
         let image = NSImageView(image: NSImage(systemSymbolName: reading.symbol, accessibilityDescription: reading.name)?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 26, weight: .regular)) ?? NSImage())
+        image.setAccessibilityHidden(true) // The adjacent text names the device.
+        image.cell?.setAccessibilityHidden(true)
         image.contentTintColor = .labelColor; image.imageScaling = .scaleProportionallyDown
         image.widthAnchor.constraint(equalToConstant: 32).isActive = true; image.heightAnchor.constraint(equalToConstant: 30).isActive = true
         let name = NSTextField(labelWithString: reading.name); name.font = .systemFont(ofSize: 13, weight: .semibold)
@@ -45,7 +47,6 @@ final class DeviceCards {
         percent.setContentHuggingPriority(.required, for: .horizontal)
         percent.setAccessibilityLabel(reading.percent.map { "\($0) percent" } ?? "Battery level unknown")
         let row = NSStackView(views: [image, labels, spacer, percent]); row.spacing = 14; row.alignment = .centerY; row.translatesAutoresizingMaskIntoConstraints = false
-        box.setAccessibilityLabel("\(reading.name), \(status), \(reading.percent.map { "\($0) percent" } ?? "battery level unknown")")
         box.contentView!.addSubview(row)
         NSLayoutConstraint.activate([row.leadingAnchor.constraint(equalTo: box.contentView!.leadingAnchor), row.trailingAnchor.constraint(equalTo: box.contentView!.trailingAnchor), row.topAnchor.constraint(equalTo: box.contentView!.topAnchor), row.bottomAnchor.constraint(equalTo: box.contentView!.bottomAnchor), box.heightAnchor.constraint(greaterThanOrEqualToConstant: 68)])
         return box

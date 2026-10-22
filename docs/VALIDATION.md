@@ -2,11 +2,11 @@
 
 ## Current evidence
 
-This is an early source preview, not a signed consumer release. Controlled cable transitions informed separate Magic Mouse and Magic Keyboard profiles. The mouse has user-confirmed charging display, automatic menu-bar appearance/removal, and charging-start notification receipt. A user-triggered test notification also has confirmed receipt. Notification Center receipt does not establish desktop banner presentation.
+This is an early source preview, not a signed consumer release. On macOS 27.2, user-confirmed cable transitions informed separate Magic Mouse and Magic Keyboard flag profiles. The mouse has user-confirmed charging display, automatic menu-bar appearance/removal, and charging-start notification receipt. A user-triggered test notification also has confirmed receipt. Notification Center receipt does not establish desktop banner presentation.
 
 Deterministic tests cover decoder boundaries, conflicting observations, stable identity, charging-start continuity, skipped thresholds, full-charge eligibility, alert preferences and menu display preferences. They use synthetic fixtures, not fabricated live readings.
 
-## Still to verify
+## Checks needing physical observation
 
 - Live simultaneous keyboard/mouse charging and independent removal.
 - Real 78%, 80% and 100% alert crossings, full-but-connected behavior, and keyboard charging UI.
@@ -32,6 +32,6 @@ Use one model and OS version per report. Observe a normal charging session; do n
 
 For each check, mark **pass**, **fail**, or **not observed** and describe expected versus actual behavior. Do not infer charging from USB presence, a rising percentage or a nonzero flag alone. Observation time is not proof that the driver value is fresh. Do not include addresses, serials, personalized names, screenshots containing personal data or broad registry dumps in public reports. Share only the relevant model family, vendor/product IDs, transport, percentage and charging properties after redaction.
 
-Current user-confirmed mouse menu behavior, charging-start receipt and test-notification receipt are separate observations. Real 78%/80%/100% threshold delivery, simultaneous charging, keyboard live UI, sleep/wake and banner presentation remain unverified.
+The macOS 27.2 mouse menu behavior, charging-start receipt and test-notification receipt are separate user-confirmed observations. No physical 78%/80%/100% crossing or threshold-alert delivery has been recorded yet; the threshold tests above use synthetic readings. Simultaneous charging, keyboard live UI, sleep/wake and banner presentation also await direct observation.
 
 Run `swift test` for simulation checks and `sh build-app.sh` for the local preview. CI runs those commands, verifies ad-hoc bundle integrity and checks the bundled license. CI does not test physical devices or visible notifications.

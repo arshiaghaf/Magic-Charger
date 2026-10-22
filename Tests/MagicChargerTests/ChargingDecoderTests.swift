@@ -26,6 +26,18 @@ final class ChargingDecoderTests: XCTestCase {
         XCTAssertEqual(decode(4, a: true), .unknown)
         XCTAssertEqual(decode(3, a: true, b: false), .unknown)
     }
+    func testNextOSMinorVersionRequiresNewFlagEvidenceButKeepsExplicitCharging() {
+        let nextMinor = OperatingSystemVersion(majorVersion: 27, minorVersion: 3, patchVersion: 0)
+        let sameMinorPatch = OperatingSystemVersion(majorVersion: 27, minorVersion: 2, patchVersion: 1)
+        for product in [803, 801] {
+            XCTAssertEqual(decode(3, product: product, system: sameMinorPatch), .charging)
+            XCTAssertEqual(decode(3, product: product, system: nextMinor), .unknown)
+            XCTAssertEqual(decode(4, product: product, system: nextMinor), .unknown)
+            XCTAssertEqual(decode(3, product: product, system: nextMinor, a: true), .charging)
+            XCTAssertEqual(decode(4, product: product, system: nextMinor, b: false), .idle)
+            XCTAssertEqual(decode(3, product: product, system: nextMinor, a: true, b: false), .unknown)
+        }
+    }
     func testDuplicateConflictAndFreshMenuEligibility() {
         let now = Date()
         func r(_ state: Charging, percent: Int? = 65, id: String = "a", date: Date? = nil) -> Reading {
