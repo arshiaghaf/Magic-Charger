@@ -3,6 +3,13 @@ import IOKit
 import UserNotifications
 import CryptoKit
 import ServiceManagement
+import CoreServices
+
+enum AppLaunch {
+    static func isLoginItem(eventID: AEEventID?, launchData: AEKeyword?) -> Bool {
+        eventID == kAEOpenApplication && launchData == keyAELaunchedAsLogInItem
+    }
+}
 
 func snapshot(identityKey: Data) -> [Reading] {
     var iterator: io_iterator_t = 0
@@ -115,6 +122,9 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
     let center = UNUserNotificationCenter.current()
     let storage = "chargingSessions.v2"
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let launchEvent = NSAppleEventManager.shared().currentAppleEvent
+        let launchedAtLogin = AppLaunch.isLoginItem(eventID: launchEvent?.eventID,
+            launchData: launchEvent?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue)
         NSApp.setActivationPolicy(.accessory)
         center.delegate = self
         let defaults = UserDefaults.standard
@@ -122,7 +132,8 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         else { identityKey = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) }; defaults.set(identityKey, forKey: "identityKey.v1") }
         updateNotificationStatus()
         if let data = UserDefaults.standard.data(forKey: storage), let sessions = try? JSONDecoder().decode([String: Session].self, from: data) { engine.sessions = sessions }
-        makeWindow(); refresh(); showSettings()
+        makeWindow(); refresh()
+        if !launchedAtLogin { showSettings() }
         schedulePolling(30)
         let nc = NSWorkspace.shared.notificationCenter
         observations.append(nc.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in self?.suspended = true; self?.generation += 1; self?.starts.invalidate(); self?.engine.invalidateContinuity(); self?.clearItems() })
@@ -264,7 +275,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         submitNotification(content, reading: r, identifier: "milestone-\(threshold)-\(r.id)", kind: .milestone(threshold), full: threshold == 100 || r.fullChargeEvidence)
     }
     func makeWindow() {
-        controls = ControlsWindow(target: self, enable: #selector(permissions), test: #selector(testNotification), updates: #selector(checkForUpdates), loginSettings: #selector(openLoginItemsSettings), quit: #selector(quit), preferences: displayPreferences, alerts: alertPreferences, onChange: { [weak self] preferences in
+        controls = ControlsWindow(target: self, enable: #selector(permissions), test: #selector(testNotification), updates: #selector(viewReleases), loginSettings: #selector(openLoginItemsSettings), quit: #selector(quit), preferences: displayPreferences, alerts: alertPreferences, onChange: { [weak self] preferences in
             self?.displayPreferences = preferences
             preferences.save(.standard)
             self?.refresh()
@@ -300,7 +311,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
                 feedback: "Couldn’t change Login Items. Check System Settings > General > Login Items.")
         }
     }
-    @objc func checkForUpdates() {
+    @objc func viewReleases() {
         let releases = URL(string: "https://github.com/arshiaghaf/Magic-Charger/releases")!
         controls.updateFeedbackForUpdates(NSWorkspace.shared.open(releases) ? "" : "Couldn’t open the releases page. Try again from your browser.")
     }

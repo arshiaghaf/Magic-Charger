@@ -1,7 +1,26 @@
 import AppKit
 import ServiceManagement
 
+private final class ControlsDocumentView: NSView {
+    override var isFlipped: Bool { true }
+}
+
+struct LoginItemViewState {
+    let toggle: NSControl.StateValue
+    let canToggle: Bool
+    let needsApproval: Bool
+
+    init(_ status: SMAppService.Status) {
+        toggle = status == .enabled ? .on : (status == .requiresApproval ? .mixed : .off)
+        canToggle = status == .notRegistered || status == .enabled
+        needsApproval = status == .requiresApproval
+    }
+}
+
 final class ControlsWindow: NSWindowController {
+    private let scrollView = NSScrollView()
+    private let documentView = ControlsDocumentView()
+    private let stack = NSStackView()
     private let devices = NSStackView()
     private let notificationLabel = NSTextField(wrappingLabelWithString: "Checking permission…")
     private let enableButton: NSButton
@@ -10,6 +29,7 @@ final class ControlsWindow: NSWindowController {
     private let loginToggle = NSButton(checkboxWithTitle: "Launch at Login", target: nil, action: nil)
     private let loginHint = NSTextField(wrappingLabelWithString: "")
     private let loginSettingsButton: NSButton
+    private let cancelLoginButton = NSButton(title: "Cancel Login Request", target: nil, action: nil)
     private let updateFeedback = NSTextField(wrappingLabelWithString: "")
     private let glyphToggle = NSButton(checkboxWithTitle: "Device icon", target: nil, action: nil)
     private let percentToggle = NSButton(checkboxWithTitle: "Percentage", target: nil, action: nil)
@@ -37,7 +57,7 @@ final class ControlsWindow: NSWindowController {
         super.init(window: window)
         window.center()
         let content = window.contentView!
-        let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 20
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 20
         stack.translatesAutoresizingMaskIntoConstraints = false
         let title = NSTextField(labelWithString: "Magic Charger")
         title.font = .systemFont(ofSize: 23, weight: .semibold)
@@ -82,15 +102,19 @@ final class ControlsWindow: NSWindowController {
         let menuOptions = NSStackView(views: [menuTitle, toggles, preferenceHint]); menuOptions.orientation = .vertical; menuOptions.alignment = .leading; menuOptions.spacing = 10
         let generalTitle = NSTextField(labelWithString: "General"); generalTitle.font = .systemFont(ofSize: 13, weight: .semibold)
         loginToggle.target = self; loginToggle.action = #selector(changeLogin(_:))
+        loginToggle.allowsMixedState = true
         loginToggle.setAccessibilityHelp("Start Magic Charger automatically when you sign in. Off until you enable it.")
         loginHint.font = .systemFont(ofSize: 11); loginHint.textColor = .secondaryLabelColor
         loginSettingsButton.bezelStyle = .inline; loginSettingsButton.isHidden = true
         loginSettingsButton.setAccessibilityHelp("Open macOS Login Items settings to approve Magic Charger.")
-        let updatesButton = NSButton(title: "Check for Updates…", target: target, action: updates)
+        cancelLoginButton.target = self; cancelLoginButton.action = #selector(cancelLogin)
+        cancelLoginButton.bezelStyle = .inline; cancelLoginButton.isHidden = true
+        cancelLoginButton.setAccessibilityHelp("Remove the pending login item registration.")
+        let updatesButton = NSButton(title: "View Releases…", target: target, action: updates)
         updatesButton.keyEquivalent = "u"; updatesButton.keyEquivalentModifierMask = .command
         updatesButton.setAccessibilityHelp("Open the official Magic Charger releases page in your browser.")
         updateFeedback.font = .systemFont(ofSize: 11); updateFeedback.textColor = .secondaryLabelColor; updateFeedback.isHidden = true
-        let general = NSStackView(views: [generalTitle, loginToggle, loginHint, loginSettingsButton, updatesButton, updateFeedback]); general.orientation = .vertical; general.alignment = .leading; general.spacing = 7
+        let general = NSStackView(views: [generalTitle, loginToggle, loginHint, loginSettingsButton, cancelLoginButton, updatesButton, updateFeedback]); general.orientation = .vertical; general.alignment = .leading; general.spacing = 7
         loginHint.widthAnchor.constraint(equalTo: general.widthAnchor).isActive = true
         updateFeedback.widthAnchor.constraint(equalTo: general.widthAnchor).isActive = true
         let details = NSButton(title: "Technical Details…", target: self, action: #selector(showDetails)); details.bezelStyle = .inline
@@ -99,8 +123,19 @@ final class ControlsWindow: NSWindowController {
         let about = NSButton(title: "About", target: self, action: #selector(showAbout)); about.bezelStyle = .inline
         let footer = NSStackView(views: [details, about, spacer, quitButton]); footer.spacing = 12
         for view in [heading, devices, menuOptions, notifications, general, footer] { stack.addArrangedSubview(view); view.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true }
-        content.addSubview(stack)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: content.topAnchor, constant: 26), stack.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -22)])
+        scrollView.hasVerticalScroller = true; scrollView.autohidesScrollers = true; scrollView.drawsBackground = false
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        documentView.frame = NSRect(x: 0, y: 0, width: 440, height: 430)
+        scrollView.documentView = documentView
+        documentView.addSubview(stack)
+        content.addSubview(scrollView)
+        NSLayoutConstraint.activate([
+            scrollView.leadingAnchor.constraint(equalTo: content.leadingAnchor), scrollView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            scrollView.topAnchor.constraint(equalTo: content.topAnchor), scrollView.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: documentView.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: documentView.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: documentView.topAnchor, constant: 26)
+        ])
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
@@ -121,13 +156,6 @@ final class ControlsWindow: NSWindowController {
                     devices.addArrangedSubview(row); row.widthAnchor.constraint(equalTo: devices.widthAnchor).isActive = true
                 }
             }
-            let height = CGFloat(560 + max(1, sorted.count) * 78)
-            if let window = window, abs(window.contentLayoutRect.height - height) > 1 {
-                var frame = window.frame
-                let newHeight = window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: 440, height: height)).height
-                frame.origin.y += frame.height - newHeight; frame.size.height = newHeight
-                window.setFrame(frame, display: true)
-            }
         }
         let enabled = notificationStatus == "Notifications enabled."
         notificationLabel.stringValue = enabled ? "Allowed by macOS" : (notificationStatus.contains("denied") ? "Blocked by macOS · Open Notification Settings to allow alerts" : (notificationStatus.contains("not requested") ? "Off · Enable Notifications to receive alerts" : "Permission unavailable · Open Notification Settings"))
@@ -138,25 +166,54 @@ final class ControlsWindow: NSWindowController {
         else if message.hasPrefix("Open Notifications") || message.hasPrefix("System Settings") { feedback.stringValue = message; feedback.isHidden = false }
         else if message.hasPrefix("Test not sent") || message.contains("failed") { feedback.stringValue = "Notification wasn’t sent. Open Notification Settings, then try again."; feedback.isHidden = false }
         else { feedback.isHidden = true }
+        resizeForContent()
     }
 
     func updateLogin(status: SMAppService.Status, feedback: String = "") {
-        loginToggle.state = status == .enabled ? .on : .off
-        loginToggle.isEnabled = status == .notRegistered || status == .enabled
-        loginSettingsButton.isHidden = status != .requiresApproval
+        let viewState = LoginItemViewState(status)
+        loginToggle.state = viewState.toggle
+        loginToggle.isEnabled = viewState.canToggle
+        loginSettingsButton.isHidden = !viewState.needsApproval
+        cancelLoginButton.isHidden = !viewState.needsApproval
         switch status {
         case .enabled: loginHint.stringValue = "Starts automatically when you sign in."
         case .notRegistered: loginHint.stringValue = feedback.isEmpty ? "Optional; currently off." : feedback
-        case .requiresApproval: loginHint.stringValue = "Needs approval in System Settings > General > Login Items."
+        case .requiresApproval: loginHint.stringValue = "Registered; approval needed in System Settings > General > Login Items."
         case .notFound: loginHint.stringValue = "Available from the signed app bundle."
         @unknown default: loginHint.stringValue = "Login item status unavailable."
         }
         if !feedback.isEmpty && status != .notRegistered { loginHint.stringValue = feedback }
+        resizeForContent()
     }
 
     func updateFeedbackForUpdates(_ message: String) {
         updateFeedback.stringValue = message
         updateFeedback.isHidden = message.isEmpty
+        resizeForContent()
+    }
+
+    static func boundedContentHeight(requested: CGFloat, visible: CGFloat, chrome: CGFloat) -> CGFloat {
+        min(requested, max(1, visible - chrome - 40))
+    }
+
+    private func resizeForContent() {
+        guard let window = window, let content = window.contentView else { return }
+        content.layoutSubtreeIfNeeded()
+        let width = max(1, scrollView.contentSize.width)
+        documentView.setFrameSize(NSSize(width: width, height: documentView.frame.height))
+        documentView.layoutSubtreeIfNeeded()
+        let requested = max(CGFloat(430), stack.fittingSize.height + 48)
+        documentView.setFrameSize(NSSize(width: width, height: requested))
+        let chrome = window.frame.height - window.contentLayoutRect.height
+        let visible = window.screen?.visibleFrame ?? NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 440, height: 700)
+        let height = Self.boundedContentHeight(requested: requested, visible: visible.height, chrome: chrome)
+        guard abs(window.contentLayoutRect.height - height) > 1 else { return }
+        var frame = window.frame
+        let newHeight = window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: frame.width, height: height)).height
+        let top = frame.maxY
+        frame.size.height = newHeight
+        frame.origin.y = min(max(top - newHeight, visible.minY + 20), visible.maxY - newHeight - 20)
+        window.setFrame(frame, display: true)
     }
 
     @objc private func showAbout() {
@@ -200,10 +257,13 @@ final class ControlsWindow: NSWindowController {
         onLoginChange(sender.state == .on)
     }
 
+    @objc private func cancelLogin() { onLoginChange(false) }
+
     @objc private func changePreferences(_ sender: NSButton) {
         let preferences = MenuBarPreferences(deviceGlyph: glyphToggle.state == .on, percentage: percentToggle.state == .on, batteryBar: barToggle.state == .on)
-        guard preferences.isValid else { sender.state = .on; preferenceHint.isHidden = false; return }
+        guard preferences.isValid else { sender.state = .on; preferenceHint.isHidden = false; resizeForContent(); return }
         preferenceHint.isHidden = true
+        resizeForContent()
         onPreferencesChange(preferences)
     }
 

@@ -1,8 +1,33 @@
 import XCTest
 import AppKit
+import CoreServices
+import ServiceManagement
 @testable import MagicCharger
 @MainActor
 final class ControlsWindowTests: XCTestCase {
+    func testLoginOpenEventIsQuietButOrdinaryLaunchAndReopenAreNot() {
+        XCTAssertTrue(AppLaunch.isLoginItem(eventID: kAEOpenApplication, launchData: keyAELaunchedAsLogInItem))
+        XCTAssertFalse(AppLaunch.isLoginItem(eventID: kAEOpenApplication, launchData: nil))
+        XCTAssertFalse(AppLaunch.isLoginItem(eventID: kAEReopenApplication, launchData: keyAELaunchedAsLogInItem))
+    }
+
+    func testWindowHeightLeavesRoomForChromeAndScrolling() {
+        XCTAssertEqual(ControlsWindow.boundedContentHeight(requested: 800, visible: 600, chrome: 30), 530)
+        XCTAssertEqual(ControlsWindow.boundedContentHeight(requested: 500, visible: 800, chrome: 30), 500)
+    }
+
+    func testLoginApprovalHasDistinctPresentationState() {
+        let pending = LoginItemViewState(.requiresApproval)
+        XCTAssertEqual(pending.toggle, .mixed)
+        XCTAssertFalse(pending.canToggle)
+        XCTAssertTrue(pending.needsApproval)
+        let enabled = LoginItemViewState(.enabled)
+        XCTAssertEqual(enabled.toggle, .on)
+        XCTAssertTrue(enabled.canToggle)
+        XCTAssertFalse(enabled.needsApproval)
+        XCTAssertEqual(LoginItemViewState(.notRegistered).toggle, .off)
+    }
+
     func testFourAlertLayoutBuildsWithoutPrematureCrossHierarchyConstraints() throws {
         let application = NSApplication.shared
         let controller = ControlsWindow(target: application, enable: #selector(NSApplication.terminate(_:)),
