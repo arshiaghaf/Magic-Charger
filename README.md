@@ -52,6 +52,10 @@ Magic Charger builds do not have a Developer ID signature or notarization. If a 
 2. Open **System Settings > Privacy & Security**, scroll to **Security**, then choose **Open Anyway** for Magic Charger.
 3. Confirm with **Open** and authenticate if macOS asks. Try opening the app again if needed.
 
+![Apple's macOS Sequoia Privacy & Security example showing Open Anyway for Example App](docs/images/macos-sequoia-open-anyway.png)
+
+Apple's macOS Sequoia (macOS 15) example shows “Example App,” not Magic Charger. [Image source](https://cdsassets.apple.com/live/7WUAS350/images/macos/sequoia/macos-sequoia-system-settings-privacy-and-security-open-app-anyway.png). The Apple image is not licensed under this project's MIT License.
+
 Do not override a warning that the app **will damage your computer** or **is damaged**. Read [Apple's guidance on safely opening apps](https://support.apple.com/en-us/102445) before approving an unnotarized app. These steps do not change the system-wide app security setting.
 
 ## Limitations
