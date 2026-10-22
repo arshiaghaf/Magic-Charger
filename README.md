@@ -105,6 +105,6 @@ CI builds and tests the app and verifies bundle packaging. It cannot validate ph
 
 ## License
 
-Magic Charger is licensed under the [MIT License](LICENSE).
+Magic Charger software and documentation, including compiled and generated forms, are licensed under the [MIT License](LICENSE). The app icon and DMG background artwork are [reserved separately](ARTWORK.md); the Apple example image and runtime SF Symbol are third-party materials.
 
 Copyright (c) 2026 Arshia Ghaf.
