@@ -19,6 +19,18 @@ The script uses an explicitly supplied `DEVELOPER_DIR`, otherwise `/Applications
 
 The release-preparation DMG currently contains an ARM64 app only; an Intel or universal distribution has not been verified. Earlier source previews used bundle ID `local.magiccharger.app`; new builds use `co.arshia.magiccharger`. macOS treats the new ID as a separate app, so notification permission must be enabled again and saved menu/alert preferences, the local identity key and notification-session history start fresh. The older preview's data is not imported or removed. If Launch at Login was enabled in the older preview, disable it there (or remove that old entry in macOS Login Items) before quitting the older preview and opening the new build. Otherwise the old copy can return at the next login and duplicate monitoring or alerts.
 
+### First launch if macOS blocks the app
+
+Magic Charger builds are ad-hoc signed, without a Developer ID signature or notarization. macOS may block the first launch of a downloaded build. There is no downloadable release yet.
+
+If you trust a future official download and macOS blocks it:
+
+1. Place Magic Charger in Applications and try opening it. Dismiss the warning if one appears.
+2. Open **System Settings > Privacy & Security**, scroll to **Security**, then choose **Open Anyway** for Magic Charger.
+3. Confirm with **Open** and authenticate if macOS asks. Try opening the app again if needed.
+
+See [Apple's guidance on safely opening apps](https://support.apple.com/en-us/102445) before overriding a warning. These steps do not require changing the system-wide app security setting.
+
 ## Use
 
 Each verified charging accessory gets its own menu-bar item. When none qualifies, the items disappear and lightweight monitoring continues. Reopen the app from Finder or Spotlight for controls and Quit. Closing the controls window keeps monitoring; there is no permanent Dock icon. **Launch at Login** is off until you enable it in General, and macOS manages the login item. Login launches keep the controls closed.
