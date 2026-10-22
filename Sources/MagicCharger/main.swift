@@ -2,6 +2,7 @@ import AppKit
 import IOKit
 import UserNotifications
 import CryptoKit
+import ServiceManagement
 
 func snapshot(identityKey: Data) -> [Reading] {
     var iterator: io_iterator_t = 0
@@ -128,6 +129,11 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         observations.append(nc.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.suspended = false; self?.generation += 1; self?.refresh() })
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showSettings(); return true }
+    func applicationDidBecomeActive(_ notification: Notification) {
+        guard controls != nil else { return }
+        controls.updateLogin(status: SMAppService.mainApp.status)
+        updateNotificationStatus()
+    }
     func schedulePolling(_ interval: TimeInterval) {
         if timer != nil && pollInterval == interval { return }
         timer?.invalidate(); pollInterval = interval
@@ -258,7 +264,7 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
         submitNotification(content, reading: r, identifier: "milestone-\(threshold)-\(r.id)", kind: .milestone(threshold), full: threshold == 100 || r.fullChargeEvidence)
     }
     func makeWindow() {
-        controls = ControlsWindow(target: self, enable: #selector(permissions), test: #selector(testNotification), quit: #selector(quit), preferences: displayPreferences, alerts: alertPreferences, onChange: { [weak self] preferences in
+        controls = ControlsWindow(target: self, enable: #selector(permissions), test: #selector(testNotification), updates: #selector(checkForUpdates), loginSettings: #selector(openLoginItemsSettings), quit: #selector(quit), preferences: displayPreferences, alerts: alertPreferences, onChange: { [weak self] preferences in
             self?.displayPreferences = preferences
             preferences.save(.standard)
             self?.refresh()
@@ -280,9 +286,25 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
                 self.center.removePendingNotificationRequests(withIdentifiers: identifiers)
             }
             self.refresh()
-        })
+        }, onLoginChange: { [weak self] enabled in self?.changeLaunchAtLogin(enabled) })
         window = controls.window
     }
+    func changeLaunchAtLogin(_ enabled: Bool) {
+        // Registration changes the user's login items only after an explicit control action.
+        do {
+            if enabled { try SMAppService.mainApp.register() }
+            else { try SMAppService.mainApp.unregister() }
+            controls.updateLogin(status: SMAppService.mainApp.status)
+        } catch {
+            controls.updateLogin(status: SMAppService.mainApp.status,
+                feedback: "Couldn’t change Login Items. Check System Settings > General > Login Items.")
+        }
+    }
+    @objc func checkForUpdates() {
+        let releases = URL(string: "https://github.com/arshiaghaf/Magic-Charger/releases")!
+        controls.updateFeedbackForUpdates(NSWorkspace.shared.open(releases) ? "" : "Couldn’t open the releases page. Try again from your browser.")
+    }
+    @objc func openLoginItemsSettings() { SMAppService.openSystemSettingsLoginItems() }
     func updateNotificationStatus() {
         center.getNotificationSettings { settings in
             DispatchQueue.main.async {
@@ -356,7 +378,12 @@ final class Delegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterD
             }
         }
     }
-    @objc func showSettings() { window.makeKeyAndOrderFront(nil); updateNotificationStatus(); NSApp.activate(ignoringOtherApps: true) }
+    @objc func showSettings() {
+        window.makeKeyAndOrderFront(nil)
+        controls.updateLogin(status: SMAppService.mainApp.status)
+        updateNotificationStatus()
+        NSApp.activate(ignoringOtherApps: true)
+    }
     @objc func quit() { NSApp.terminate(nil) }
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .list, .sound])

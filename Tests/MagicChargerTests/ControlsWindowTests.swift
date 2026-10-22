@@ -6,8 +6,10 @@ final class ControlsWindowTests: XCTestCase {
     func testFourAlertLayoutBuildsWithoutPrematureCrossHierarchyConstraints() throws {
         let application = NSApplication.shared
         let controller = ControlsWindow(target: application, enable: #selector(NSApplication.terminate(_:)),
-            test: #selector(NSApplication.terminate(_:)), quit: #selector(NSApplication.terminate(_:)),
-            preferences: MenuBarPreferences(), alerts: NotificationPreferences(), onChange: { _ in }, onAlertsChange: { _ in })
+            test: #selector(NSApplication.terminate(_:)), updates: #selector(NSApplication.terminate(_:)),
+            loginSettings: #selector(NSApplication.terminate(_:)), quit: #selector(NSApplication.terminate(_:)),
+            preferences: MenuBarPreferences(), alerts: NotificationPreferences(),
+            onChange: { _ in }, onAlertsChange: { _ in }, onLoginChange: { _ in })
         controller.update(readings: [], notificationStatus: "Notifications enabled.", feedback: "", diagnostic: "SIMULATED")
         let window = try XCTUnwrap(controller.window)
         window.contentView?.layoutSubtreeIfNeeded()
