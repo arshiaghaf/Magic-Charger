@@ -58,7 +58,7 @@ cask "magic-charger" do
   url "$URL"
   name "Magic Charger"
   desc "Charging notifications for Magic Keyboard and Magic Mouse"
-  homepage "https://github.com/arshiaghaf/Magic-Charger"
+  homepage "https://github.com/arshiaghaf/MagicCharger"
 
   depends_on macos: :sonoma
   depends_on arch: :arm64
